@@ -155,6 +155,14 @@ export class MemStorage implements IStorage {
     };
     
     this.videos.set(video.id, updatedVideo);
+    
+    // If Telegram channel storage is enabled, save to channel
+    if (telegramBot.isChannelStorageEnabled()) {
+      telegramBot.saveVideo(updatedVideo).catch(error => {
+        console.error('Failed to save updated video to Telegram channel:', error);
+      });
+    }
+    
     return updatedVideo;
   }
   
@@ -169,6 +177,13 @@ export class MemStorage implements IStorage {
     };
     
     this.videos.set(video.id, updatedVideo);
+    
+    // If Telegram channel storage is enabled, save to channel
+    if (telegramBot.isChannelStorageEnabled()) {
+      telegramBot.saveVideo(updatedVideo).catch(error => {
+        console.error('Failed to save video access count to Telegram channel:', error);
+      });
+    }
   }
   
   async getRecentVideos(limit: number): Promise<Video[]> {
@@ -217,11 +232,31 @@ export class MemStorage implements IStorage {
     
     const updatedDomain = { ...domain, active: !domain.active };
     this.domains.set(id, updatedDomain);
+    
+    // If Telegram channel storage is enabled, save to channel
+    if (telegramBot.isChannelStorageEnabled()) {
+      telegramBot.saveDomain(updatedDomain).catch(error => {
+        console.error('Failed to save updated domain to Telegram channel:', error);
+      });
+    }
+    
     return updatedDomain;
   }
   
   async deleteDomain(id: number): Promise<boolean> {
-    return this.domains.delete(id);
+    const domain = this.domains.get(id);
+    const deleted = this.domains.delete(id);
+    
+    // If deleted successfully and Telegram channel is enabled, log the deletion
+    if (deleted && domain && telegramBot.isChannelStorageEnabled()) {
+      this.createLog({
+        level: 'INFO',
+        source: 'Domains',
+        message: `Domain "${domain.domain}" (ID: ${domain.id}) has been deleted`
+      });
+    }
+    
+    return deleted;
   }
   
   async isDomainWhitelisted(domain: string): Promise<boolean> {
