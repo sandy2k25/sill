@@ -434,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete('/api/logs', async (req, res) => {
+  app.delete('/api/logs', authMiddleware, async (req, res) => {
     try {
       await storage.clearLogs();
       

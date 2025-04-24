@@ -97,10 +97,7 @@ export const getLogs = async (
     params.append('level', level);
   }
   
-  const res = await fetch(`/api/logs?${params.toString()}`);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch logs: ${res.statusText}`);
-  }
+  const res = await apiRequest('GET', `/api/logs?${params.toString()}`);
   const data = await res.json();
   return data.data;
 };
