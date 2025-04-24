@@ -260,47 +260,9 @@ export class MemStorage implements IStorage {
   }
   
   async isDomainWhitelisted(domain: string): Promise<boolean> {
-    const activeDomains = await this.getActiveDomains();
-    
-    // Check for exact domain match first
-    if (activeDomains.some(d => d.domain === domain)) {
-      return true;
-    }
-    
-    // Check if this is a subdomain of any whitelisted domain
-    // For example, if sub.example.com is checked against example.com
-    return activeDomains.some(d => {
-      // Check if the domain is a subdomain of a whitelisted domain
-      // Make sure we match exact domain parts to avoid matching unrelated domains
-      // (e.g., notexample.com should not match example.com)
-      const domainParts = domain.split('.');
-      const whitelistedParts = d.domain.split('.');
-      
-      // Simple case: user is on example.com and example.com is whitelisted
-      if (domain === d.domain) {
-        return true;
-      }
-      
-      // Case: user is on sub.example.com and example.com is whitelisted
-      if (domain.endsWith(`.${d.domain}`)) {
-        return true;
-      }
-      
-      // Case: user is on sub1.sub2.example.com and *.example.com is whitelisted
-      if (d.domain.startsWith('*.') && domain.endsWith(d.domain.substring(1))) {
-        return true;
-      }
-      
-      // Case: user is on example.com and *.example.com is whitelisted
-      if (d.domain.startsWith('*.')) {
-        const baseDomain = d.domain.substring(2); // Remove the '*.' prefix
-        if (domain === baseDomain) {
-          return true;
-        }
-      }
-      
-      return false;
-    });
+    // Domain restriction has been disabled - always return true regardless of domain
+    // This allows embedding the player on any site without restrictions
+    return true;
   }
   
   // Log methods
