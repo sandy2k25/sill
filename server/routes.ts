@@ -13,17 +13,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Middleware to check origin for all API routes
   app.use('/api', async (req, res, next) => {
-    // Skip origin check for specific paths
+    // For development environment, we always allow access
+    if (process.env.NODE_ENV === 'development') {
+      return next();
+    }
+    
+    // Skip origin check for specific paths - these are publicly accessible
     const allowedPaths = ['/api/auth/login', '/api/video', '/api/videos/recent'];
     const isExemptPath = allowedPaths.some(path => req.path.startsWith(path));
     
     if (!isExemptPath) {
-      const isAllowed = await verifyOrigin(req);
+      // Only check origins if the request has an origin or referer header
+      // This allows direct API access from the browser when not embedded
+      const origin = req.get('origin');
+      const referer = req.get('referer');
       
-      if (!isAllowed) {
-        return res.status(403).json({ 
-          error: 'Access denied: Origin not whitelisted' 
-        });
+      if (origin || referer) {
+        const isAllowed = await verifyOrigin(req);
+        
+        if (!isAllowed) {
+          return res.status(403).json({ 
+            error: 'Access denied: Origin not whitelisted' 
+          });
+        }
       }
     }
     
@@ -474,7 +486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/telegram/start', async (req, res) => {
+  app.post('/api/telegram/start', authMiddleware, async (req, res) => {
     try {
       await telegramBot.start();
       
@@ -490,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/telegram/stop', async (req, res) => {
+  app.post('/api/telegram/stop', authMiddleware, async (req, res) => {
     try {
       await telegramBot.stop();
       
