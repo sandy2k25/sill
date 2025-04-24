@@ -171,8 +171,9 @@ export class VideoScraper {
       
     logInfo('Scraper', `Scraping video with ID: ${videoId}${season ? `, Season: ${season}` : ''}${episode ? `, Episode: ${episode}` : ''}`);
 
-    // Check cache if enabled
-    if (this.settings.cacheEnabled) {
+    // Only check cache if enabled AND we're not using season/episode parameters
+    // This ensures we always fetch a fresh URL when season/episode parameters are provided
+    if (this.settings.cacheEnabled && !season && !episode) {
       const cachedData = videoCache.get<InsertVideo>(cacheKey);
       if (cachedData) {
         logInfo('Cache', `Cache hit for video ID: ${cacheKey}`);
@@ -180,14 +181,17 @@ export class VideoScraper {
       }
       
       logInfo('Cache', `Cache miss for video ID: ${cacheKey}, initiating scraper`);
+    } else if (season || episode) {
+      logInfo('Cache', `Bypassing cache for season/episode request: ${cacheKey}`);
     }
 
-    // Check if we have an existing record in storage
+    // Only use existing storage record if we're NOT requesting a specific season/episode
+    // Otherwise, always fetch a fresh URL for season/episode combinations
     const existingVideo = await this.storage.getVideoByVideoId(videoId);
-    if (existingVideo) {
+    if (existingVideo && !season && !episode) {
       await this.storage.incrementAccessCount(videoId);
       
-      // Update cache
+      // Update cache only for the base videoId (no season/episode)
       if (this.settings.cacheEnabled) {
         videoCache.set(videoId, {
           videoId: existingVideo.videoId,
@@ -203,6 +207,9 @@ export class VideoScraper {
         url: existingVideo.url,
         quality: existingVideo.quality || null
       };
+    } else if (existingVideo) {
+      // Only increment access count if we found an existing record
+      await this.storage.incrementAccessCount(videoId);
     }
 
     // In Replit environment, use direct HTTP calls instead of Puppeteer
