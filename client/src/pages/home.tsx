@@ -81,10 +81,7 @@ const Home: React.FC = () => {
               <span className="text-gray-400 text-sm">Quality:</span>
               <p className="font-medium">{videoQuality || '-'}</p>
             </div>
-            <div className="bg-darkAccent p-3 rounded col-span-2">
-              <span className="text-gray-400 text-sm">Extracted URL:</span>
-              <p className="font-medium break-all text-xs">{videoUrl || '-'}</p>
-            </div>
+
           </div>
         </div>
       </div>
