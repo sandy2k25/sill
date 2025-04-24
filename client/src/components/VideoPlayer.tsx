@@ -10,25 +10,58 @@ interface VideoPlayerProps {
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoId, onLoadComplete }) => {
-  const playerRef = useRef<HTMLVideoElement>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   const playerInstanceRef = useRef<Plyr | null>(null);
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
 
+  // Create video element and plyr instance
   useEffect(() => {
-    // Initialize player
-    if (playerRef.current && !playerInstanceRef.current) {
-      playerInstanceRef.current = new Plyr(playerRef.current, {
-        controls: [
-          'play-large', 'play', 'progress', 'current-time', 'mute', 
-          'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
-        ]
-      });
+    if (!videoContainerRef.current) return;
+    
+    // Clean up any existing player
+    if (playerInstanceRef.current) {
+      playerInstanceRef.current.destroy();
+      playerInstanceRef.current = null;
     }
-
+    
+    // Clean up existing video element
+    if (videoContainerRef.current.firstChild) {
+      videoContainerRef.current.innerHTML = '';
+    }
+    
+    // Create new video element
+    const video = document.createElement('video');
+    video.crossOrigin = 'anonymous';
+    video.setAttribute('playsinline', '');
+    video.setAttribute('controls', '');
+    
+    // Create source element
+    const source = document.createElement('source');
+    source.setAttribute('type', 'video/mp4');
+    
+    // Add fallback text
+    video.innerText = 'Your browser does not support the video tag.';
+    
+    // Append elements
+    video.appendChild(source);
+    videoContainerRef.current.appendChild(video);
+    
+    // Initialize Plyr
+    playerInstanceRef.current = new Plyr(video, {
+      controls: [
+        'play-large', 'play', 'progress', 'current-time', 'mute', 
+        'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
+      ]
+    });
+    
+    // Save reference to video element
+    setVideoElement(video);
+    
     return () => {
-      // Cleanup
       if (playerInstanceRef.current) {
         playerInstanceRef.current.destroy();
         playerInstanceRef.current = null;
@@ -36,9 +69,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoId, onLoadComplete }) =>
     };
   }, []);
 
+  // Load video when videoId changes
   useEffect(() => {
     const loadVideo = async () => {
-      if (!videoId) {
+      if (!videoId || !videoElement) {
         setError(null);
         return;
       }
@@ -48,15 +82,29 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoId, onLoadComplete }) =>
 
       try {
         const video = await getVideo(videoId);
+        const videoUrl = video.url;
         
-        if (playerInstanceRef.current) {
-          playerInstanceRef.current.source = {
-            type: 'video',
-            sources: [{
-              src: video.url,
-              type: 'video/mp4',
-            }]
-          };
+        // Update source element
+        const sourceElement = videoElement.querySelector('source');
+        if (sourceElement) {
+          sourceElement.setAttribute('src', videoUrl);
+        }
+        
+        // Set video URL directly on video element as well
+        videoElement.setAttribute('src', videoUrl);
+        
+        // Load the new source
+        videoElement.load();
+        
+        // Update current URL
+        setCurrentVideoUrl(videoUrl);
+        
+        // Play the video after loading
+        const playPromise = videoElement.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error('Auto-play was prevented:', error);
+          });
         }
         
         // Call callback with video data
@@ -83,22 +131,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoId, onLoadComplete }) =>
     };
 
     loadVideo();
-  }, [videoId, onLoadComplete, toast]);
+  }, [videoId, videoElement, onLoadComplete, toast]);
 
   return (
     <div className="relative rounded-lg overflow-hidden bg-black aspect-video">
-      {/* Plyr Video Player */}
-      <video ref={playerRef} playsInline controls>
-        <source src="" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
+      {/* Video Player Container */}
+      <div ref={videoContainerRef} className="w-full h-full"></div>
       
       {/* Loading Overlay */}
       {loading && (
-        <div className="absolute inset-0 bg-dark bg-opacity-70 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mb-4"></div>
-            <p>Loading video...</p>
+            <p className="text-white">Loading video...</p>
           </div>
         </div>
       )}
