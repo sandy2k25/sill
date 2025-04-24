@@ -205,45 +205,193 @@ export class VideoScraper {
       };
     }
 
-    // For demonstration purposes in Replit environment
-    // Use fallback demo video in Replit environment to avoid browser dependency issues
-    // This would be replaced with a proper scraping implementation in production
+    // In Replit environment, use direct HTTP calls instead of Puppeteer
     if (isReplitEnvironment) {
       await storage.createLog({
         level: 'INFO',
         source: 'Scraper',
-        message: `Using development fallback for video ID: ${videoId} in Replit environment`
+        message: `Using HTTP fallback for video ID: ${videoId} in Replit environment`
       });
       
-      // Demo video data for development purposes
-      let videoUrl = '';
-      let videoTitle = '';
-      
-      // Use different sample videos based on the ID for variety
-      if (videoId === '12345' || parseInt(videoId) % 2 === 0) {
-        videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-        videoTitle = 'Big Buck Bunny';
-      } else {
-        videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
-        videoTitle = 'Elephants Dream';
+      try {
+        // First, try to fetch data from letsembed.cc directly using fetch API
+        const embedUrl = `https://letsembed.cc/player/embed.php?v=${videoId}`;
+        
+        await storage.createLog({
+          level: 'INFO',
+          source: 'Scraper',
+          message: `Fetching from: ${embedUrl}`
+        });
+        
+        // Get the embed page
+        const embedResponse = await fetch(embedUrl);
+        
+        if (!embedResponse.ok) {
+          throw new Error(`HTTP error! Status: ${embedResponse.status}`);
+        }
+        
+        const embedHtml = await embedResponse.text();
+        
+        // Extract video title from HTML
+        let videoTitle = `Video ${videoId}`;
+        const titleMatch = embedHtml.match(/<title>(.*?)<\/title>/i);
+        if (titleMatch && titleMatch[1]) {
+          videoTitle = titleMatch[1].trim().replace(' - letsembed.cc', '');
+        }
+        
+        // Extract iframe source
+        let iframeSrc = '';
+        const iframeMatch = embedHtml.match(/iframe.*?src="([^"]+)"/i);
+        if (iframeMatch && iframeMatch[1]) {
+          iframeSrc = iframeMatch[1];
+          await storage.createLog({
+            level: 'INFO',
+            source: 'Scraper',
+            message: `Found iframe source: ${iframeSrc}`
+          });
+        } else {
+          throw new Error('Could not find iframe source');
+        }
+        
+        // Now fetch the iframe content
+        const iframeResponse = await fetch(iframeSrc);
+        
+        if (!iframeResponse.ok) {
+          throw new Error(`HTTP error for iframe! Status: ${iframeResponse.status}`);
+        }
+        
+        const iframeHtml = await iframeResponse.text();
+        
+        // Try to extract video URL from iframe content
+        let videoUrl = '';
+        const downloadUrlMatch = iframeHtml.match(/class="btn\s+dl-btn.*?href="([^"]+)"/i);
+        
+        if (downloadUrlMatch && downloadUrlMatch[1]) {
+          // Found a download button, get its href
+          videoUrl = downloadUrlMatch[1];
+          
+          // If it's a relative URL, make it absolute
+          if (!videoUrl.startsWith('http')) {
+            const iframeUrlObj = new URL(iframeSrc);
+            videoUrl = `${iframeUrlObj.origin}${videoUrl.startsWith('/') ? '' : '/'}${videoUrl}`;
+          }
+          
+          await storage.createLog({
+            level: 'INFO',
+            source: 'Scraper',
+            message: `Found download URL: ${videoUrl}`
+          });
+          
+          // Follow the download URL to get the final URL
+          const downloadResponse = await fetch(videoUrl, {
+            redirect: 'follow',
+            method: 'HEAD'
+          });
+          
+          if (downloadResponse.ok && downloadResponse.url) {
+            videoUrl = downloadResponse.url;
+            await storage.createLog({
+              level: 'INFO',
+              source: 'Scraper',
+              message: `Resolved final download URL: ${videoUrl}`
+            });
+          }
+        }
+        
+        // If we still don't have a URL, look for source tags
+        if (!videoUrl) {
+          const sourceMatch = iframeHtml.match(/source\s+src="([^"]+)"/i);
+          if (sourceMatch && sourceMatch[1]) {
+            videoUrl = sourceMatch[1];
+            await storage.createLog({
+              level: 'INFO',
+              source: 'Scraper',
+              message: `Found source URL: ${videoUrl}`
+            });
+          }
+        }
+        
+        // If we still don't have a URL, check for direct mp4 links
+        if (!videoUrl) {
+          const mp4Match = iframeHtml.match(/["'](https?:\/\/[^"']+\.mp4[^"']*)["']/i);
+          if (mp4Match && mp4Match[1]) {
+            videoUrl = mp4Match[1];
+            await storage.createLog({
+              level: 'INFO',
+              source: 'Scraper',
+              message: `Found MP4 URL: ${videoUrl}`
+            });
+          }
+        }
+        
+        // If URL extraction fails, use fallback sample videos
+        if (!videoUrl) {
+          await storage.createLog({
+            level: 'WARN',
+            source: 'Scraper',
+            message: `Could not extract video URL, using fallback`
+          });
+          
+          if (videoId === '12345' || parseInt(videoId) % 2 === 0) {
+            videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+            videoTitle = 'Big Buck Bunny';
+          } else {
+            videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
+            videoTitle = 'Elephants Dream';
+          }
+        }
+        
+        const videoInfo: InsertVideo = {
+          videoId,
+          title: videoTitle,
+          url: videoUrl,
+          quality: 'HD'
+        };
+        
+        // Update cache
+        if (this.settings.cacheEnabled) {
+          videoCache.set(videoId, videoInfo, this.settings.cacheTTL);
+        }
+        
+        // Store in database
+        await storage.createVideo(videoInfo);
+        
+        return videoInfo;
+        
+      } catch (error) {
+        await storage.createLog({
+          level: 'ERROR',
+          source: 'Scraper',
+          message: `HTTP fallback failed for video ID ${videoId}: ${error instanceof Error ? error.message : String(error)}`
+        });
+        
+        // If HTTP fallback fails, use a sample video as absolute last resort
+        let videoUrl, videoTitle;
+        if (videoId === '12345' || parseInt(videoId) % 2 === 0) {
+          videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+          videoTitle = 'Big Buck Bunny';
+        } else {
+          videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
+          videoTitle = 'Elephants Dream';
+        }
+        
+        const fallbackInfo: InsertVideo = {
+          videoId,
+          title: videoTitle,
+          url: videoUrl,
+          quality: 'HD'
+        };
+        
+        // Update cache
+        if (this.settings.cacheEnabled) {
+          videoCache.set(videoId, fallbackInfo, this.settings.cacheTTL);
+        }
+        
+        // Store in database
+        await storage.createVideo(fallbackInfo);
+        
+        return fallbackInfo;
       }
-      
-      const demoVideoInfo: InsertVideo = {
-        videoId,
-        title: videoTitle,
-        url: videoUrl,
-        quality: 'HD'
-      };
-      
-      // Update cache
-      if (this.settings.cacheEnabled) {
-        videoCache.set(videoId, demoVideoInfo, this.settings.cacheTTL);
-      }
-      
-      // Store in database
-      await storage.createVideo(demoVideoInfo);
-      
-      return demoVideoInfo;
     }
 
     try {
