@@ -123,11 +123,14 @@ export class MemStorage implements IStorage {
     const id = this.videoIdCounter++;
     const now = new Date();
     const video: Video = { 
-      ...insertVideo, 
-      id, 
-      scrapedAt: now, 
-      lastAccessed: now, 
-      accessCount: 0 
+      id,
+      videoId: insertVideo.videoId,
+      title: insertVideo.title || null,
+      url: insertVideo.url,
+      quality: insertVideo.quality || null,
+      scrapedAt: now,
+      lastAccessed: now,
+      accessCount: 0
     };
     this.videos.set(id, video);
     
@@ -161,7 +164,7 @@ export class MemStorage implements IStorage {
     
     const updatedVideo = { 
       ...video, 
-      accessCount: video.accessCount + 1,
+      accessCount: (video.accessCount || 0) + 1,
       lastAccessed: new Date()
     };
     
@@ -171,7 +174,10 @@ export class MemStorage implements IStorage {
   async getRecentVideos(limit: number): Promise<Video[]> {
     return Array.from(this.videos.values())
       .sort((a, b) => {
-        return new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime();
+        // Handle null dates
+        const dateA = a.lastAccessed ? new Date(a.lastAccessed).getTime() : 0;
+        const dateB = b.lastAccessed ? new Date(b.lastAccessed).getTime() : 0;
+        return dateB - dateA;
       })
       .slice(0, limit);
   }
@@ -188,9 +194,10 @@ export class MemStorage implements IStorage {
   async createDomain(insertDomain: InsertDomain): Promise<Domain> {
     const id = this.domainIdCounter++;
     const domain: Domain = { 
-      ...insertDomain, 
-      id, 
-      addedAt: new Date() 
+      id,
+      domain: insertDomain.domain,
+      active: insertDomain.active !== undefined ? insertDomain.active : true,
+      addedAt: new Date()
     };
     this.domains.set(id, domain);
     
@@ -226,7 +233,10 @@ export class MemStorage implements IStorage {
   async getLogs(limit: number, offset: number, level?: string): Promise<{ logs: Log[], total: number }> {
     let logs = Array.from(this.logs.values())
       .sort((a, b) => {
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        // Handle null timestamps
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeB - timeA;
       });
     
     const total = logs.length;

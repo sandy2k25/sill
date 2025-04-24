@@ -74,6 +74,18 @@ export type Domain = typeof domains.$inferSelect;
 export type InsertLog = z.infer<typeof insertLogSchema>;
 export type Log = typeof logs.$inferSelect;
 
+// Ensure all schema types are properly defined
+export interface VideoInterface {
+  id: number;
+  videoId: string;
+  title: string | null;
+  url: string;
+  quality: string | null;
+  scrapedAt: Date | null;
+  lastAccessed: Date | null;
+  accessCount: number | null;
+}
+
 // Settings schema for scraper configuration
 export type ScraperSettings = {
   timeout: number;
