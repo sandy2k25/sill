@@ -518,6 +518,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Telegram webhook endpoint for VPS/cloud services
+  app.post('/api/telegram-webhook', (req, res) => {
+    try {
+      console.log('Received Telegram webhook request');
+      
+      // If the bot is active, process the update
+      if (telegramBot.isActive() && telegramBot.getBot()) {
+        const bot = telegramBot.getBot()!;
+        
+        // Use the Telegraf bot instance to handle the update
+        bot.handleUpdate(req.body, res)
+          .then(() => {
+            // Response is already sent by handleUpdate
+          })
+          .catch(err => {
+            console.error('Error handling Telegram update:', err);
+            res.status(200).json({ ok: true, message: 'Error processing update' });
+          });
+      } else {
+        console.log('Received webhook request but bot is not active');
+        return res.status(200).json({ ok: true, message: 'Bot not active' });
+      }
+    } catch (error) {
+      console.error('Error in Telegram webhook:', error);
+      return res.status(200).json({ ok: true, message: 'Error processing webhook' });
+    }
+  });
+  
   // Initialize Telegram bot at startup if token exists
   if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.length > 10) {
     console.log('Starting Telegram bot...');

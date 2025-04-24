@@ -421,8 +421,8 @@ export class TelegramBot {
               // Set webhook and launch in webhook mode
               await this.bot.telegram.setWebhook(webhookUrl);
               
-              // Simplified launch for webhook mode
-              this.bot.startWebhook('/api/telegram-webhook', null, 3000);
+              // For webhook mode, we'll handle the updates through the Express route
+              console.log('Webhook set successfully, waiting for updates via HTTP endpoint');
             } else {
               console.log('No webhook domain found, falling back to polling mode');
               await this.bot.launch({
@@ -532,6 +532,13 @@ export class TelegramBot {
    */
   isActive(): boolean {
     return this.isRunning;
+  }
+  
+  /**
+   * Get the bot instance for direct access (e.g., webhook handling)
+   */
+  getBot(): Telegraf | null {
+    return this.bot;
   }
   
   /**
