@@ -214,8 +214,8 @@ export class VideoScraper {
       });
       
       try {
-        // First, try to fetch data from letsembed.cc directly using fetch API
-        const embedUrl = `https://letsembed.cc/player/embed.php?v=${videoId}`;
+        // First, try to fetch data directly from the download page
+        const embedUrl = `https://dl.letsembed.cc/?id=${videoId}`;
         
         await storage.createLog({
           level: 'INFO',
@@ -239,32 +239,18 @@ export class VideoScraper {
           videoTitle = titleMatch[1].trim().replace(' - letsembed.cc', '');
         }
         
-        // Extract iframe source
-        let iframeSrc = '';
-        const iframeMatch = embedHtml.match(/iframe.*?src="([^"]+)"/i);
-        if (iframeMatch && iframeMatch[1]) {
-          iframeSrc = iframeMatch[1];
-          await storage.createLog({
-            level: 'INFO',
-            source: 'Scraper',
-            message: `Found iframe source: ${iframeSrc}`
-          });
-        } else {
-          throw new Error('Could not find iframe source');
-        }
+        // Look directly for download links in the page 
+        await storage.createLog({
+          level: 'INFO',
+          source: 'Scraper',
+          message: `Analyzing download page for direct links`
+        });
         
-        // Now fetch the iframe content
-        const iframeResponse = await fetch(iframeSrc);
-        
-        if (!iframeResponse.ok) {
-          throw new Error(`HTTP error for iframe! Status: ${iframeResponse.status}`);
-        }
-        
-        const iframeHtml = await iframeResponse.text();
-        
-        // Try to extract video URL from iframe content
+        // Try to extract video URL directly from the download page
         let videoUrl = '';
-        const downloadUrlMatch = iframeHtml.match(/class="btn\s+dl-btn.*?href="([^"]+)"/i);
+        
+        // Look for download links
+        const downloadUrlMatch = embedHtml.match(/class="(?:btn\s+)?download-btn.*?href="([^"]+)"/i);
         
         if (downloadUrlMatch && downloadUrlMatch[1]) {
           // Found a download button, get its href
@@ -272,8 +258,8 @@ export class VideoScraper {
           
           // If it's a relative URL, make it absolute
           if (!videoUrl.startsWith('http')) {
-            const iframeUrlObj = new URL(iframeSrc);
-            videoUrl = `${iframeUrlObj.origin}${videoUrl.startsWith('/') ? '' : '/'}${videoUrl}`;
+            const embedUrlObj = new URL(embedUrl);
+            videoUrl = `${embedUrlObj.origin}${videoUrl.startsWith('/') ? '' : '/'}${videoUrl}`;
           }
           
           await storage.createLog({
@@ -300,7 +286,7 @@ export class VideoScraper {
         
         // If we still don't have a URL, look for source tags
         if (!videoUrl) {
-          const sourceMatch = iframeHtml.match(/source\s+src="([^"]+)"/i);
+          const sourceMatch = embedHtml.match(/source\s+src="([^"]+)"/i);
           if (sourceMatch && sourceMatch[1]) {
             videoUrl = sourceMatch[1];
             await storage.createLog({
@@ -313,13 +299,40 @@ export class VideoScraper {
         
         // If we still don't have a URL, check for direct mp4 links
         if (!videoUrl) {
-          const mp4Match = iframeHtml.match(/["'](https?:\/\/[^"']+\.mp4[^"']*)["']/i);
+          const mp4Match = embedHtml.match(/["'](https?:\/\/[^"']+\.mp4[^"']*)["']/i);
           if (mp4Match && mp4Match[1]) {
             videoUrl = mp4Match[1];
             await storage.createLog({
               level: 'INFO',
               source: 'Scraper',
               message: `Found MP4 URL: ${videoUrl}`
+            });
+          }
+        }
+        
+        // Also look for any download link with proper parameters
+        if (!videoUrl) {
+          const signedUrlMatch = embedHtml.match(/href="([^"]+\.mp4[^"]*signature=[^"&]+[^"]*)">/i);
+          if (signedUrlMatch && signedUrlMatch[1]) {
+            videoUrl = signedUrlMatch[1];
+            await storage.createLog({
+              level: 'INFO',
+              source: 'Scraper',
+              message: `Found signed URL: ${videoUrl}`
+            });
+          }
+        }
+        
+        // Look for videoUrl directly in source code
+        if (!videoUrl) {
+          // Look for the direct download URL assignment in JavaScript
+          const directUrlMatch = embedHtml.match(/videoUrl\s*=\s*["']([^"']+\.mp4[^"']*(?:Expires|expires)=[^"']+)["']/i);
+          if (directUrlMatch && directUrlMatch[1]) {
+            videoUrl = directUrlMatch[1].replace(/\\([\/:~])/g, '$1'); // Remove escape slashes
+            await storage.createLog({
+              level: 'INFO',
+              source: 'Scraper',
+              message: `Found direct video URL in source code: ${videoUrl}`
             });
           }
         }
