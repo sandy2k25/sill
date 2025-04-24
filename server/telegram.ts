@@ -55,6 +55,11 @@ export class TelegramBot {
       this.bot = new Telegraf(token);
       console.log('Telegram bot created with token');
       
+      // Make sure the bot was created successfully
+      if (!this.bot) {
+        throw new Error('Failed to create Telegram bot instance');
+      }
+      
       // Add admin verification middleware to all commands
       this.bot.use(async (ctx, next) => {
         if (ctx.from && this.isAdminUser(ctx.from.id)) {
@@ -86,6 +91,9 @@ export class TelegramBot {
       }
     } catch (error) {
       console.error('Failed to initialize Telegram bot:', error);
+      // Explicitly set bot to null on error
+      this.bot = null;
+      
       if (storageInstance) {
         storageInstance.createLog({
           level: 'ERROR',
@@ -503,16 +511,20 @@ export class TelegramBot {
             }
           } else if (action === 'list') {
             // Trigger the /domains command to show the list
-            await this.bot.handleUpdate({
-              update_id: 0,
-              message: {
-                message_id: 0,
-                date: 0,
-                chat: ctx.chat,
-                from: ctx.from,
-                text: '/domains'
-              }
-            });
+            if (this.bot) {
+              await this.bot.handleUpdate({
+                update_id: 0,
+                message: {
+                  message_id: 0,
+                  date: 0,
+                  chat: ctx.chat,
+                  from: ctx.from,
+                  text: '/domains'
+                }
+              });
+            } else {
+              await ctx.reply('⚠️ Cannot list domains: Bot instance not available');
+            }
             return;
           }
         }

@@ -18,7 +18,19 @@ export async function verifyOrigin(req: Request): Promise<boolean> {
   if (!origin && !referer) {
     const isAdminEndpoint = req.path.includes('/admin') || 
                           req.path.includes('/auth') || 
-                          req.path === '/api/auth/login';
+                          req.path === '/api/auth/login' ||
+                          req.path === '/api/telegram-webhook';
+                          
+    // For non-admin endpoints, enforce origin check
+    if (!isAdminEndpoint) {
+      await storage.createLog({
+        level: 'WARN',
+        source: 'Security',
+        message: `Access denied: Missing origin/referer for path ${req.path}`
+      });
+      return false;
+    }
+    
     return isAdminEndpoint;
   }
   
@@ -31,13 +43,13 @@ export async function verifyOrigin(req: Request): Promise<boolean> {
     // Check if domain is whitelisted
     const isWhitelisted = await storage.isDomainWhitelisted(domain);
     
-    // Log the check
+    // Log the check with more details
     await storage.createLog({
       level: isWhitelisted ? 'INFO' : 'WARN',
       source: 'Security',
       message: isWhitelisted
-        ? `Access granted for domain: ${domain}`
-        : `Access denied for non-whitelisted domain: ${domain}`
+        ? `Access granted for domain: ${domain} (${origin ? 'origin' : 'referer'}: ${urlString})`
+        : `Access denied for non-whitelisted domain: ${domain} (${origin ? 'origin' : 'referer'}: ${urlString})`
     });
     
     return isWhitelisted;
