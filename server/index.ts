@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { videoScraper } from "./scraper";
+import { telegramBot } from "./telegram";
 import { initLogger } from "./logger";
 
 // Set Replit environment flag for use in conditional code paths
@@ -13,6 +14,10 @@ initLogger(storage);
 
 // Initialize the scraper with storage for database access
 videoScraper.setStorage(storage);
+
+// Initialize Telegram bot with storage and scraper
+telegramBot.setStorage(storage);
+telegramBot.setVideoScraper(videoScraper);
 
 const app = express();
 app.use(express.json());
