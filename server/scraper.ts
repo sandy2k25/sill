@@ -659,7 +659,7 @@ export class VideoScraper {
         
         page.on('request', (request: Request) => {
           const url = request.url();
-          // Look for MP4 or video content requests
+          // Look for MP4 or video content requests, particularly from macdn.hakunaymatata.com
           if (url.includes('.mp4') || url.includes('macdn.hakunaymatata.com')) {
             logInfo('Scraper', `Captured video request URL: ${url}`);
             capturedVideoUrl = url;
@@ -676,8 +676,44 @@ export class VideoScraper {
           }
         });
         
-        // Give some time for the requests to be captured
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Give more time for the requests to be captured (3 seconds)
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // If we still don't have a URL, check if there's a videoUrl variable in the page context
+        if (!capturedVideoUrl) {
+          logInfo('Scraper', 'Trying to extract videoUrl from page script context');
+          
+          try {
+            // Extract videoUrl directly from page context
+            const extractedUrl = await page.evaluate(() => {
+              // @ts-ignore - intentionally accessing page's global scope
+              return window.videoUrl || null;
+            });
+            
+            if (extractedUrl) {
+              logInfo('Scraper', `Found videoUrl in page context: ${extractedUrl}`);
+              capturedVideoUrl = extractedUrl;
+            }
+          } catch (err) {
+            logWarn('Scraper', `Failed to extract videoUrl from context: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+        
+        // Search in page source for the URL pattern
+        if (!capturedVideoUrl) {
+          logInfo('Scraper', 'Searching page source for URL pattern');
+          
+          const pageContent = await page.evaluate(() => document.documentElement.outerHTML);
+          
+          // Specifically look for macdn.hakunaymatata.com URLs
+          const hakunaPattern = /https:\/\/macdn\.hakunaymatata\.com\/resource\/[a-f0-9]+\.mp4\?Expires=[0-9]+&Signature=[^&"']+&Key-Pair-Id=[^&"']+/g;
+          const hakunaMatches = pageContent.match(hakunaPattern);
+          
+          if (hakunaMatches && hakunaMatches.length > 0) {
+            capturedVideoUrl = hakunaMatches[0].replace(/\\([\/:~])/g, '$1');
+            logInfo('Scraper', `Found hakuna URL in page source: ${capturedVideoUrl}`);
+          }
+        }
         
         // Turn off request interception
         await page.setRequestInterception(false);

@@ -56,62 +56,152 @@ export function embedProtectionMiddleware(req: Request, res: Response, next: Nex
   // Set security headers to prevent embedding on non-whitelisted domains
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   
-  // Get referer from request
-  const referer = req.get('referer');
-  
-  // If direct access (no referer), allow
-  if (!referer) {
-    next();
-    return;
-  }
-  
-  // Check referer domain
-  try {
-    const url = new URL(referer);
-    const domain = url.hostname;
+  // Handle the /api/video/* routes specifically
+  if (req.path.startsWith('/api/video/')) {
+    // Get origin and referer from request
+    const origin = req.get('origin');
+    const referer = req.get('referer');
     
-    // Check if domain is whitelisted asynchronously
-    storage.isDomainWhitelisted(domain)
-      .then(isWhitelisted => {
-        if (isWhitelisted) {
-          // For whitelisted domains, allow embedding
-          res.removeHeader('X-Frame-Options');
-          next();
-        } else {
-          // For non-whitelisted domains, send embed protection script
-          // This script will break out of frames for non-whitelisted domains
-          const embedProtectionScript = `
-            <script>
-              // If we're in an iframe and parent domain is not whitelisted
-              if (window.self !== window.top) {
-                // Break out of the iframe
-                window.top.location.href = window.location.href;
-              }
-            </script>
-          `;
-          
-          // Only inject script for HTML responses
-          const originalSend = res.send;
-          res.send = function(body) {
-            // Only inject for HTML responses
-            if (typeof body === 'string' && body.includes('<!DOCTYPE html>') || body.includes('<html')) {
-              // Insert script right after head tag
-              body = body.replace('<head>', '<head>' + embedProtectionScript);
+    // If direct API access with no origin/referer, apply strict validation
+    if (!origin && !referer) {
+      // For API calls, check if the request came with a specific header
+      const apiKey = req.get('X-API-Key');
+      if (!apiKey || apiKey !== process.env.API_KEY) {
+        // Log unauthorized access attempt
+        storage.createLog({
+          level: 'WARN',
+          source: 'Security',
+          message: `Direct API access attempt without referer or valid API key from IP: ${req.ip}`
+        });
+        
+        return res.status(403).json({
+          success: false,
+          error: 'Embedding is disabled for this domain'
+        });
+      }
+    } else {
+      // Parse origin or referer
+      try {
+        const urlString = origin || referer || '';
+        const url = new URL(urlString);
+        const domain = url.hostname;
+        
+        // Check domain against whitelist
+        storage.isDomainWhitelisted(domain)
+          .then(isWhitelisted => {
+            if (isWhitelisted) {
+              // For whitelisted domains, allow API access
+              res.removeHeader('X-Frame-Options');
+              next();
+            } else {
+              // Log unauthorized domain
+              storage.createLog({
+                level: 'WARN',
+                source: 'Security',
+                message: `API access attempt from non-whitelisted domain: ${domain}`
+              });
+              
+              // For non-whitelisted domains, block API access
+              res.status(403).json({
+                success: false,
+                error: 'Embedding is disabled for this domain'
+              });
             }
+          })
+          .catch(error => {
+            console.error('Error checking domain whitelist:', error);
+            // Default to blocking on error
+            res.status(500).json({
+              success: false,
+              error: 'Error validating domain'
+            });
+          });
+        return; // Important: stop execution here since we're handling response in the async block
+      } catch (error) {
+        // If there's an error parsing the URL, block access
+        return res.status(403).json({
+          success: false,
+          error: 'Invalid origin'
+        });
+      }
+    }
+  } else {
+    // For non-API routes, check referer
+    const referer = req.get('referer');
+    
+    // If direct access (no referer), allow
+    if (!referer) {
+      next();
+      return;
+    }
+    
+    // Check referer domain
+    try {
+      const url = new URL(referer);
+      const domain = url.hostname;
+      
+      // Check if domain is whitelisted asynchronously
+      storage.isDomainWhitelisted(domain)
+        .then(isWhitelisted => {
+          if (isWhitelisted) {
+            // For whitelisted domains, allow embedding
+            res.removeHeader('X-Frame-Options');
+            next();
+          } else {
+            // For non-whitelisted domains, send embed protection script
+            // This script will break out of frames for non-whitelisted domains
+            const embedProtectionScript = `
+              <script>
+                // If we're in an iframe and parent domain is not whitelisted
+                if (window.self !== window.top) {
+                  // Break out of the iframe or show error message
+                  document.body.innerHTML = '<div style="color: red; padding: 20px;">Embedding is disabled for this domain.</div>';
+                  // Or redirect: window.top.location.href = window.location.href;
+                }
+              </script>
+            `;
             
-            return originalSend.call(this, body);
-          };
-          
+            // Only inject script for HTML responses
+            const originalSend = res.send;
+            res.send = function(body) {
+              // Only inject for HTML responses
+              if (typeof body === 'string' && (body.includes('<!DOCTYPE html>') || body.includes('<html'))) {
+                // Insert script right after head tag
+                body = body.replace('<head>', '<head>' + embedProtectionScript);
+              }
+              
+              return originalSend.call(this, body);
+            };
+            
+            next();
+          }
+        })
+        .catch(error => {
+          console.error('Error in embed protection middleware:', error);
           next();
+        });
+    } catch (error) {
+      // If there's an error parsing the referer, block
+      const embedProtectionScript = `
+        <script>
+          // If we're in an iframe, block
+          if (window.self !== window.top) {
+            document.body.innerHTML = '<div style="color: red; padding: 20px;">Embedding is disabled.</div>';
+          }
+        </script>
+      `;
+      
+      // Monkey patch the send method
+      const originalSend = res.send;
+      res.send = function(body) {
+        if (typeof body === 'string' && (body.includes('<!DOCTYPE html>') || body.includes('<html'))) {
+          body = body.replace('<head>', '<head>' + embedProtectionScript);
         }
-      })
-      .catch(error => {
-        console.error('Error in embed protection middleware:', error);
-        next();
-      });
-  } catch (error) {
-    // If there's an error parsing the referer, continue
-    next();
+        return originalSend.call(this, body);
+      };
+      
+      next();
+    }
   }
 }
 

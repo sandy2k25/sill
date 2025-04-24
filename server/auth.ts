@@ -4,8 +4,11 @@ import jwt from 'jsonwebtoken';
 import { storage } from './storage';
 
 // Secret for JWT signing
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-development-only-key';
-const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '$2b$10$rkZ.JsQJ2VCZ7G3x6i7P3.zs7s..Wpmy3Gt3GH6mRv3S0RRJnB5GG'; // Default: 'admin123'
+const JWT_SECRET = process.env.SESSION_SECRET || 'super-secret-development-only-key';
+
+// Use WEB_ADMIN_PASSWORD from environment or fallback to default hash
+// Default hash is for 'admin123'
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '$2b$10$rkZ.JsQJ2VCZ7G3x6i7P3.zs7s..Wpmy3Gt3GH6mRv3S0RRJnB5GG';
 
 // Define token expiration time (1 day)
 const TOKEN_EXPIRATION = '24h';
@@ -24,8 +27,18 @@ export async function loginAdmin(req: Request, res: Response) {
       });
     }
 
-    // Compare password with hash
-    const isMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+    // Check if environment variable is set
+    const webAdminPassword = process.env.WEB_ADMIN_PASSWORD;
+    
+    let isMatch = false;
+    
+    if (webAdminPassword) {
+      // Direct comparison with plaintext password from environment
+      isMatch = password === webAdminPassword;
+    } else {
+      // Fallback to hash comparison
+      isMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+    }
     
     if (!isMatch) {
       await storage.createLog({

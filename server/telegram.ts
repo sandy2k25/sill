@@ -18,7 +18,7 @@ export class TelegramBot {
   // Telegram channel storage configuration
   private channelStorage: TelegramDB = {
     channelId: process.env.TELEGRAM_CHANNEL_ID,
-    enabled: false
+    enabled: process.env.TELEGRAM_CHANNEL_ID ? true : false // Auto-enable if channel ID is provided
   };
   
   constructor() {
@@ -91,8 +91,11 @@ export class TelegramBot {
         return;
       }
       
-      // Simple password check (in production, this would be more secure)
-      if (password === 'admin123') {
+      // Get admin password from environment or use default
+      const adminPassword = process.env.TELEGRAM_ADMIN_PASSWORD || 'admin123';
+      
+      // Check if password matches
+      if (password === adminPassword) {
         this.adminUsers.add(userId);
         await ctx.reply('Successfully authenticated as admin!');
         
@@ -103,6 +106,12 @@ export class TelegramBot {
         });
       } else {
         await ctx.reply('Invalid password!');
+        
+        storage.createLog({
+          level: 'WARN',
+          source: 'Telegram',
+          message: `Failed authentication attempt from user ${userId}`
+        });
       }
     });
     
@@ -336,6 +345,31 @@ export class TelegramBot {
     try {
       await this.bot.launch();
       this.isRunning = true;
+      
+      // Auto start channel storage if configured
+      if (this.channelStorage.channelId && this.channelStorage.enabled) {
+        // Log status
+        storage.createLog({
+          level: 'INFO',
+          source: 'Telegram',
+          message: `Telegram channel storage enabled automatically for channel: ${this.channelStorage.channelId}`
+        });
+        
+        // Send a test message
+        const testResult = await this.saveToChannel('system', {
+          event: 'startup',
+          timestamp: new Date().toISOString(),
+          message: 'Telegram channel storage initialized'
+        });
+        
+        if (!testResult) {
+          storage.createLog({
+            level: 'WARN',
+            source: 'Telegram',
+            message: `Failed to send test message to channel. Make sure the bot is an admin in the channel: ${this.channelStorage.channelId}`
+          });
+        }
+      }
       
       storage.createLog({
         level: 'INFO',
