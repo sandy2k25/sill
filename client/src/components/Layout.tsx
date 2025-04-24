@@ -32,25 +32,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           
           {/* Navigation */}
           <nav className="flex space-x-6">
-            <Link href="/">
-              <a className={`${activeTab === 'player' ? 'text-primary' : 'text-lightText hover:text-primary'} transition-colors`}>
-                <i className="fas fa-play mr-1"></i> Player
-              </a>
-            </Link>
+            <div className={`${activeTab === 'player' ? 'text-primary' : 'text-lightText hover:text-primary'} transition-colors cursor-pointer`}
+                 onClick={() => window.location.href = '/'}>
+              <i className="fas fa-play mr-1"></i> Player
+            </div>
             
             {/* Only show admin links if authenticated */}
             {isAuthenticated && (
               <>
-                <Link href="/admin">
-                  <a className={`${activeTab === 'admin' ? 'text-primary' : 'text-lightText hover:text-primary'} transition-colors`}>
-                    <i className="fas fa-cog mr-1"></i> Admin
-                  </a>
-                </Link>
-                <Link href="/logs">
-                  <a className={`${activeTab === 'logs' ? 'text-primary' : 'text-lightText hover:text-primary'} transition-colors`}>
-                    <i className="fas fa-list mr-1"></i> Logs
-                  </a>
-                </Link>
+                <div className={`${activeTab === 'admin' ? 'text-primary' : 'text-lightText hover:text-primary'} transition-colors cursor-pointer`}
+                     onClick={() => window.location.href = '/admin'}>
+                  <i className="fas fa-cog mr-1"></i> Admin
+                </div>
+                <div className={`${activeTab === 'logs' ? 'text-primary' : 'text-lightText hover:text-primary'} transition-colors cursor-pointer`}
+                     onClick={() => window.location.href = '/logs'}>
+                  <i className="fas fa-list mr-1"></i> Logs
+                </div>
               </>
             )}
           </nav>
@@ -76,16 +73,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <a href="#" className="text-primary hover:text-secondary transition-colors">Documentation</a>
             <span className="mx-2">|</span>
             {!isAuthenticated ? (
-              <Link href="/auth">
-                <a className="text-gray-500 hover:text-gray-400 transition-colors text-xs">·</a>
-              </Link>
+              <span 
+                className="text-gray-500 hover:text-gray-400 transition-colors text-xs cursor-pointer" 
+                onClick={() => window.location.href = '/auth'}>
+                ·
+              </span>
             ) : (
-              <Link href="/">
-                <a onClick={() => { window.localStorage.removeItem('admin_auth_token'); window.location.reload(); }} 
-                   className="text-gray-400 hover:text-primary transition-colors text-xs">
-                  Logout
-                </a>
-              </Link>
+              <span 
+                onClick={() => { window.localStorage.removeItem('admin_auth_token'); window.location.reload(); }} 
+                className="text-gray-400 hover:text-primary transition-colors text-xs cursor-pointer">
+                Logout
+              </span>
             )}
           </div>
         </div>

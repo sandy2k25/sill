@@ -457,6 +457,13 @@ export class TelegramBot {
       return true;
     } catch (error) {
       console.error(`Failed to save data to Telegram channel: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // Disable channel storage after consistent failures
+      if (error.message && (error.message.includes('chat not found') || error.message.includes('Bad Request'))) {
+        console.log('Disabling Telegram channel storage due to persistent errors');
+        this.disableChannelStorage();
+      }
+      
       if (storageInstance) {
         storageInstance.createLog({
           level: 'ERROR',
