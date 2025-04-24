@@ -205,7 +205,7 @@ export class TelegramBot {
           { parse_mode: 'Markdown' }
         );
       } catch (error) {
-        await ctx.reply(`⚠️ Error fetching settings: ${error.message}`);
+        await ctx.reply(`⚠️ Error fetching settings: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
     
@@ -248,9 +248,89 @@ export class TelegramBot {
       );
     });
     
-    // Fallback for unrecognized commands
-    this.bot.on('message', async (ctx) => {
-      if ('text' in ctx.message && ctx.message.text && ctx.message.text.startsWith('/')) {
+    // Process command arguments for settings, channel, etc.
+    this.bot.on('text', async (ctx) => {
+      const text = ctx.message.text;
+      
+      // Handle settings command with arguments
+      if (text.startsWith('/settings ')) {
+        const args = text.split(' ');
+        if (args.length >= 3) {
+          const setting = args[1].toLowerCase();
+          const value = args[2].toLowerCase();
+          
+          try {
+            const currentSettings = await storageInstance?.getScraperSettings();
+            if (!currentSettings) {
+              await ctx.reply('⚠️ Failed to get current settings');
+              return;
+            }
+            
+            let updatedSettings: Partial<ScraperSettings> = {};
+            
+            if (setting === 'timeout' && !isNaN(parseInt(value))) {
+              updatedSettings.timeout = parseInt(value);
+            } else if (setting === 'retry') {
+              updatedSettings.autoRetry = (value === 'on' || value === 'true');
+            } else if (setting === 'cache') {
+              updatedSettings.cacheEnabled = (value === 'on' || value === 'true');
+            } else if (setting === 'ttl' && !isNaN(parseInt(value))) {
+              updatedSettings.cacheTTL = parseInt(value);
+            } else {
+              await ctx.reply('⚠️ Invalid setting or value format');
+              return;
+            }
+            
+            const newSettings = await storageInstance?.updateScraperSettings(updatedSettings);
+            await ctx.reply(`✅ Settings updated successfully:\n${JSON.stringify(newSettings, null, 2)}`);
+          } catch (error) {
+            await ctx.reply(`⚠️ Error updating settings: ${error instanceof Error ? error.message : String(error)}`);
+          }
+          return;
+        }
+      }
+      
+      // Handle channel command with arguments
+      if (text.startsWith('/channel ')) {
+        const args = text.split(' ');
+        if (args.length >= 2) {
+          const action = args[1].toLowerCase();
+          
+          if (action === 'enable' && args.length >= 3) {
+            const channelId = args[2];
+            this.enableChannelStorage(channelId);
+            await ctx.reply(`✅ Channel storage enabled with ID: ${channelId}`);
+            return;
+          } else if (action === 'disable') {
+            this.disableChannelStorage();
+            await ctx.reply('✅ Channel storage disabled');
+            return;
+          } else if (action === 'status') {
+            const status = this.isChannelStorageEnabled() 
+              ? `✅ Enabled (ID: ${this.channelStorage.channelId})` 
+              : '❌ Disabled';
+            await ctx.reply(`Channel storage status: ${status}`);
+            return;
+          }
+        }
+      }
+      
+      // Handle admin authentication
+      if (text.startsWith('/admin ')) {
+        const password = text.split(' ')[1];
+        if (this.verifyAdminPassword(password)) {
+          this.adminUsers.add(ctx.from.id);
+          await ctx.reply('✅ Admin access granted');
+        } else {
+          await ctx.reply('❌ Invalid admin password');
+        }
+        return;
+      }
+      
+      // Fallback for unrecognized commands
+      if (text.startsWith('/') && 
+          !['/start', '/menu', '/stats', '/settings', '/domains', '/cache', '/logs', '/channel', '/help', '/admin']
+            .some(cmd => text.startsWith(cmd))) {
         await ctx.reply(
           '⚠️ Unknown command. Use /menu to see available commands.',
           {
@@ -276,7 +356,7 @@ export class TelegramBot {
    */
   private verifyAdminPassword(password: string): boolean {
     const adminPassword = process.env.TELEGRAM_ADMIN_PASSWORD;
-    return adminPassword && password === adminPassword;
+    return !!adminPassword && password === adminPassword;
   }
   
   /**
@@ -322,10 +402,40 @@ export class TelegramBot {
       
       while (retryCount < maxRetries) {
         try {
-          // Use dropPendingUpdates to avoid processing old messages after restart
-          await this.bot.launch({
-            dropPendingUpdates: true
-          });
+          // Determine if we're running in a VPS/cloud environment 
+          // This detects Koyeb/Cloudflare/similar serverless environments
+          const isServerlessEnv = process.env.KOYEB_APP_NAME || 
+                                 process.env.CF_PAGES || 
+                                 process.env.VERCEL || 
+                                 process.env.NETLIFY;
+          
+          // Use webhook mode in cloud/VPS environments, polling in development
+          if (isServerlessEnv) {
+            // For webhook mode, we need a public URL
+            const webhookDomain = process.env.PUBLIC_URL || process.env.APP_URL;
+            
+            if (webhookDomain) {
+              const webhookUrl = `${webhookDomain}/api/telegram-webhook`;
+              console.log(`Starting Telegram bot in webhook mode: ${webhookUrl}`);
+              
+              // Set webhook and launch in webhook mode
+              await this.bot.telegram.setWebhook(webhookUrl);
+              
+              // Simplified launch for webhook mode
+              this.bot.startWebhook('/api/telegram-webhook', null, 3000);
+            } else {
+              console.log('No webhook domain found, falling back to polling mode');
+              await this.bot.launch({
+                dropPendingUpdates: true
+              });
+            }
+          } else {
+            // Standard polling mode for development
+            console.log('Starting Telegram bot in polling mode');
+            await this.bot.launch({
+              dropPendingUpdates: true
+            });
+          }
           
           this.isRunning = true;
           console.log('Telegram bot started successfully');
@@ -350,7 +460,10 @@ export class TelegramBot {
           
           // Check if this is a conflict error
           const isConflictError = 
-            launchError.message && 
+            typeof launchError === 'object' && 
+            launchError !== null && 
+            'message' in launchError && 
+            typeof launchError.message === 'string' && 
             (launchError.message.includes('Conflict') || 
              launchError.message.includes('409'));
           
