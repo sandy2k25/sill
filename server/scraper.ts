@@ -284,10 +284,20 @@ export class VideoScraper {
         // Look for videoUrl directly in source code
         if (!videoUrl) {
           // Look for the direct download URL assignment in JavaScript
-          const directUrlMatch = embedHtml.match(/videoUrl\s*=\s*["']([^"']+\.mp4[^"']*(?:Expires|expires)=[^"']+)["']/i);
+          // Updated regex to match URLs from macdn.hakunaymatata.com and other CDN domains
+          const directUrlMatch = embedHtml.match(/videoUrl\s*=\s*["']([^"']+(?:\.mp4|\w+\/[a-f0-9]+)(?:[^"']*(?:Expires|expires)=[^"'&]+)(?:[^"']+))["']/i);
           if (directUrlMatch && directUrlMatch[1]) {
             videoUrl = directUrlMatch[1].replace(/\\([\/:~])/g, '$1'); // Remove escape slashes
             logInfo('Scraper', `Found direct video URL in source code: ${videoUrl}`);
+          }
+        }
+        
+        // Specifically look for macdn.hakunaymatata.com URLs in a script 
+        if (!videoUrl) {
+          const hakunaUrlMatch = embedHtml.match(/["']https?:\/\/macdn\.hakunaymatata\.com\/resource\/[a-f0-9]+\.mp4\?(?:Expires|expires)=[0-9]+&(?:Signature|signature)=[^"'&]+&Key-Pair-Id=[^"'&]+["']/i);
+          if (hakunaUrlMatch && hakunaUrlMatch[0]) {
+            videoUrl = hakunaUrlMatch[0].replace(/^["']|["']$/g, '').replace(/\\([\/:~])/g, '$1');
+            logInfo('Scraper', `Found macdn.hakunaymatata.com URL pattern: ${videoUrl}`);
           }
         }
         
@@ -452,19 +462,40 @@ export class VideoScraper {
         }
       }
       
-      // Check for mp4 links
+      // Look for macdn.hakunaymatata.com URLs specifically
+      if (!videoUrl) {
+        const hakunaMatch = html.match(/["'](https?:\/\/macdn\.hakunaymatata\.com\/resource\/[a-f0-9]+\.mp4\?[^"']+)["']/i);
+        if (hakunaMatch && hakunaMatch[1]) {
+          videoUrl = hakunaMatch[1];
+          logInfo('Scraper', `Found macdn.hakunaymatata.com URL: ${videoUrl}`);
+        }
+      }
+
+      // Check for general mp4 links
       if (!videoUrl) {
         const mp4Match = html.match(/["'](https?:\/\/[^"']+\.mp4[^"']*)["']/i);
         if (mp4Match && mp4Match[1]) {
           videoUrl = mp4Match[1];
+          logInfo('Scraper', `Found general MP4 URL: ${videoUrl}`);
         }
       }
       
       // Check for videoUrl in JS
       if (!videoUrl) {
-        const directUrlMatch = html.match(/videoUrl\s*=\s*["']([^"']+\.mp4[^"']*(?:Expires|expires)=[^"']+)["']/i);
+        // Updated regex to match URLs from macdn.hakunaymatata.com and other CDN domains
+        const directUrlMatch = html.match(/videoUrl\s*=\s*["']([^"']+(?:\.mp4|\w+\/[a-f0-9]+)(?:[^"']*(?:Expires|expires)=[^"'&]+)(?:[^"']+))["']/i);
         if (directUrlMatch && directUrlMatch[1]) {
           videoUrl = directUrlMatch[1].replace(/\\([\/:~])/g, '$1');
+          logInfo('Scraper', `Found videoUrl assignment in JS: ${videoUrl}`);
+        }
+      }
+      
+      // Look for URLs in onclick handlers or other attributes
+      if (!videoUrl) {
+        const attrMatch = html.match(/(?:onclick|data-url|data-src|href)=["'](?:window\.open\()?["']?(https?:\/\/[^"'\)]+\.mp4[^"'\)]+)["']?/i);
+        if (attrMatch && attrMatch[1]) {
+          videoUrl = attrMatch[1];
+          logInfo('Scraper', `Found URL in attribute: ${videoUrl}`);
         }
       }
       
@@ -499,10 +530,10 @@ export class VideoScraper {
       });
       
       // Extract the video URL
-      const videoUrl = await page.evaluate(() => {
-        // This captures the URL from JavaScript variables
-        // @ts-ignore
-        if (typeof videoUrl !== 'undefined') {
+      const videoUrl = await page.evaluate((): string | null => {
+        // Try to find the video URL in the page's JavaScript variables
+        // @ts-ignore - accessing global variables from the page context
+        if (typeof videoUrl !== 'undefined' && videoUrl) {
           // @ts-ignore
           return videoUrl;
         }
@@ -517,6 +548,34 @@ export class VideoScraper {
         const videoSource = document.querySelector('video source');
         if (videoSource && videoSource.getAttribute('src')) {
           return videoSource.getAttribute('src');
+        }
+        
+        // Try to find the video URL in any script content - use a different approach without for...of
+        let extractedUrl = null;
+        
+        // Check all script elements for embedded URLs
+        document.querySelectorAll('script').forEach((script) => {
+          if (extractedUrl) return; // Skip if we already found a URL
+          
+          const content = script.textContent || '';
+          
+          // Look for macdn.hakunaymatata.com URLs
+          const match = content.match(/["']https?:\/\/macdn\.hakunaymatata\.com\/resource\/[a-f0-9]+\.mp4\?[^"']+["']/i);
+          if (match && match[0]) {
+            extractedUrl = match[0].replace(/^["']|["']$/g, '');
+            return;
+          }
+          
+          // Look for other CDN URLs with expires parameter
+          const cdnMatch = content.match(/["']https?:\/\/[^"']+(?:\.mp4|\w+\/[a-f0-9]+)(?:[^"']*(?:Expires|expires)=[^"'&]+[^"']*)["']/i);
+          if (cdnMatch && cdnMatch[0]) {
+            extractedUrl = cdnMatch[0].replace(/^["']|["']$/g, '');
+            return;
+          }
+        });
+        
+        if (extractedUrl) {
+          return extractedUrl;
         }
         
         return null;
