@@ -209,6 +209,116 @@ export class TelegramBot {
       }
     });
     
+    // Domains command - list and manage whitelisted domains
+    this.bot.command('domains', async (ctx) => {
+      if (!storageInstance) {
+        await ctx.reply('⚠️ Domain management not available');
+        return;
+      }
+      
+      try {
+        const domains = await storageInstance.getAllDomains();
+        
+        if (domains.length === 0) {
+          await ctx.reply(
+            '🌐 *Whitelisted Domains*\n\n' +
+            'No domains have been added yet.\n\n' +
+            'Commands:\n' +
+            '/domains add <domain> - Add a new domain\n' +
+            '/domains list - List all domains',
+            { parse_mode: 'Markdown' }
+          );
+          return;
+        }
+        
+        const domainsText = domains.map(d => 
+          `${d.id}. ${d.domain} - ${d.active ? '✅ Active' : '❌ Inactive'}`
+        ).join('\n');
+        
+        await ctx.reply(
+          '🌐 *Whitelisted Domains*\n\n' +
+          `${domainsText}\n\n` +
+          'Commands:\n' +
+          '/domains add <domain> - Add a new domain\n' +
+          '/domains toggle <id> - Toggle domain status\n' +
+          '/domains delete <id> - Delete a domain',
+          { parse_mode: 'Markdown' }
+        );
+      } catch (error) {
+        await ctx.reply(`⚠️ Error fetching domains: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+    
+    // Cache command - manage video cache
+    this.bot.command('cache', async (ctx) => {
+      if (!videoScraperInstance || !storageInstance) {
+        await ctx.reply('⚠️ Cache management not available');
+        return;
+      }
+      
+      try {
+        const settings = await storageInstance.getScraperSettings();
+        const videos = await storageInstance.getRecentVideos(5); // Get 5 most recent videos
+        
+        let videosText = '';
+        if (videos.length > 0) {
+          videosText = '\n\n*Recent Videos in Cache:*\n' + 
+            videos.map(v => `- ${v.videoId}: ${v.title || 'Untitled'}`).join('\n');
+        }
+        
+        await ctx.reply(
+          '🗄️ *Video Cache*\n\n' +
+          `Status: ${settings.cacheEnabled ? '✅ Enabled' : '❌ Disabled'}\n` +
+          `TTL: ${settings.cacheTTL} minutes\n` +
+          `${videosText}\n\n` +
+          'Commands:\n' +
+          '/cache clear - Clear the entire cache\n' +
+          '/cache refresh <videoId> - Refresh a specific video\n' +
+          '/settings cache on/off - Enable/disable cache',
+          { parse_mode: 'Markdown' }
+        );
+      } catch (error) {
+        await ctx.reply(`⚠️ Error fetching cache info: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+    
+    // Logs command - view system logs
+    this.bot.command('logs', async (ctx) => {
+      if (!storageInstance) {
+        await ctx.reply('⚠️ Logs not available');
+        return;
+      }
+      
+      try {
+        const { logs } = await storageInstance.getLogs(10, 0); // Get 10 most recent logs
+        
+        if (logs.length === 0) {
+          await ctx.reply(
+            '📝 *System Logs*\n\n' +
+            'No logs available.\n\n' +
+            'Commands:\n' +
+            '/logs clear - Clear all logs',
+            { parse_mode: 'Markdown' }
+          );
+          return;
+        }
+        
+        const logsText = logs.map(log => 
+          `[${log.level}] ${log.source}: ${log.message.substring(0, 50)}${log.message.length > 50 ? '...' : ''}`
+        ).join('\n');
+        
+        await ctx.reply(
+          '📝 *System Logs*\n\n' +
+          `${logsText}\n\n` +
+          'Commands:\n' +
+          '/logs clear - Clear all logs',
+          { parse_mode: 'Markdown' }
+        );
+      } catch (error) {
+        await ctx.reply(`⚠️ Error fetching logs: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+    
     // Help command
     this.bot.command('help', async (ctx) => {
       await ctx.reply(
@@ -325,6 +435,147 @@ export class TelegramBot {
           await ctx.reply('❌ Invalid admin password');
         }
         return;
+      }
+      
+      // Handle domains command with arguments
+      if (text.startsWith('/domains ')) {
+        const args = text.split(' ');
+        if (args.length >= 2) {
+          const action = args[1].toLowerCase();
+          
+          if (action === 'add' && args.length >= 3) {
+            // Add domain
+            const domain = args.slice(2).join(' ').trim();
+            
+            try {
+              const newDomain = await storageInstance?.createDomain({
+                domain,
+                active: true
+              });
+              
+              await ctx.reply(`✅ Domain added successfully: ${domain}`);
+              return;
+            } catch (error) {
+              await ctx.reply(`⚠️ Error adding domain: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+          } else if (action === 'toggle' && args.length >= 3) {
+            // Toggle domain status
+            const id = parseInt(args[2]);
+            if (isNaN(id)) {
+              await ctx.reply('⚠️ Invalid domain ID');
+              return;
+            }
+            
+            try {
+              const updatedDomain = await storageInstance?.toggleDomainStatus(id);
+              if (!updatedDomain) {
+                await ctx.reply(`⚠️ Domain with ID ${id} not found`);
+                return;
+              }
+              
+              await ctx.reply(`✅ Domain ${id} is now ${updatedDomain.active ? 'active' : 'inactive'}`);
+              return;
+            } catch (error) {
+              await ctx.reply(`⚠️ Error toggling domain: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+          } else if (action === 'delete' && args.length >= 3) {
+            // Delete domain
+            const id = parseInt(args[2]);
+            if (isNaN(id)) {
+              await ctx.reply('⚠️ Invalid domain ID');
+              return;
+            }
+            
+            try {
+              const success = await storageInstance?.deleteDomain(id);
+              if (!success) {
+                await ctx.reply(`⚠️ Domain with ID ${id} not found`);
+                return;
+              }
+              
+              await ctx.reply(`✅ Domain ${id} deleted successfully`);
+              return;
+            } catch (error) {
+              await ctx.reply(`⚠️ Error deleting domain: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+          } else if (action === 'list') {
+            // Trigger the /domains command to show the list
+            await this.bot.handleUpdate({
+              update_id: 0,
+              message: {
+                message_id: 0,
+                date: 0,
+                chat: ctx.chat,
+                from: ctx.from,
+                text: '/domains'
+              }
+            });
+            return;
+          }
+        }
+      }
+      
+      // Handle cache command with arguments
+      if (text.startsWith('/cache ')) {
+        const args = text.split(' ');
+        if (args.length >= 2) {
+          const action = args[1].toLowerCase();
+          
+          if (action === 'clear') {
+            // Clear the entire cache
+            try {
+              await videoScraperInstance?.clearCache();
+              
+              await ctx.reply('✅ Cache cleared successfully');
+              return;
+            } catch (error) {
+              await ctx.reply(`⚠️ Error clearing cache: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+          } else if (action === 'refresh' && args.length >= 3) {
+            // Refresh a specific video
+            const videoId = args[2];
+            
+            try {
+              const refreshedVideo = await videoScraperInstance?.refreshCache(videoId);
+              
+              if (!refreshedVideo) {
+                await ctx.reply(`⚠️ Failed to refresh video: ${videoId}`);
+                return;
+              }
+              
+              await ctx.reply(`✅ Video refreshed successfully: ${videoId}`);
+              return;
+            } catch (error) {
+              await ctx.reply(`⚠️ Error refreshing video: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+          }
+        }
+      }
+      
+      // Handle logs command with arguments
+      if (text.startsWith('/logs ')) {
+        const args = text.split(' ');
+        if (args.length >= 2) {
+          const action = args[1].toLowerCase();
+          
+          if (action === 'clear') {
+            // Clear all logs
+            try {
+              await storageInstance?.clearLogs();
+              
+              await ctx.reply('✅ Logs cleared successfully');
+              return;
+            } catch (error) {
+              await ctx.reply(`⚠️ Error clearing logs: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+          }
+        }
       }
       
       // Fallback for unrecognized commands
