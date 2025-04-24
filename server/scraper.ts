@@ -529,53 +529,41 @@ export class VideoScraper {
         return titleElement ? titleElement.textContent?.trim() : document.title.replace(' - letsembed.cc', '').trim();
       });
       
-      // Extract the video URL
-      const videoUrl = await page.evaluate((): string | null => {
-        // Try to find the video URL in the page's JavaScript variables
-        // @ts-ignore - accessing global variables from the page context
-        if (typeof videoUrl !== 'undefined' && videoUrl) {
-          // @ts-ignore
-          return videoUrl;
-        }
+      // Extract the video URL using simpler methods
+      const videoUrl = await page.evaluate(() => {
+        // First try: check for global videoUrl variable
+        // @ts-ignore - intentionally accessing page's global scope
+        const globalVideoUrl = window.videoUrl;
+        if (globalVideoUrl) return globalVideoUrl;
         
-        // Try getting the URL from the download button
+        // Second try: download button href
         const downloadBtn = document.querySelector('.download-btn');
         if (downloadBtn && downloadBtn.getAttribute('href')) {
           return downloadBtn.getAttribute('href');
         }
         
-        // Try getting the URL from video source
+        // Third try: video source
         const videoSource = document.querySelector('video source');
         if (videoSource && videoSource.getAttribute('src')) {
           return videoSource.getAttribute('src');
         }
         
-        // Try to find the video URL in any script content - use a different approach without for...of
-        let extractedUrl = null;
-        
-        // Check all script elements for embedded URLs
-        document.querySelectorAll('script').forEach((script) => {
-          if (extractedUrl) return; // Skip if we already found a URL
+        // Fourth try: search in script tags for specific CDN URLs
+        const scripts = document.querySelectorAll('script');
+        for (let i = 0; i < scripts.length; i++) {
+          const scriptContent = scripts[i].textContent || '';
           
-          const content = script.textContent || '';
-          
-          // Look for macdn.hakunaymatata.com URLs
-          const match = content.match(/["']https?:\/\/macdn\.hakunaymatata\.com\/resource\/[a-f0-9]+\.mp4\?[^"']+["']/i);
-          if (match && match[0]) {
-            extractedUrl = match[0].replace(/^["']|["']$/g, '');
-            return;
+          // Check for macdn.hakunaymatata.com URLs
+          const hakunaMatch = scriptContent.match(/["']https?:\/\/macdn\.hakunaymatata\.com\/resource\/[a-f0-9]+\.mp4\?[^"']+["']/i);
+          if (hakunaMatch && hakunaMatch[0]) {
+            return hakunaMatch[0].replace(/^["']|["']$/g, '');
           }
           
-          // Look for other CDN URLs with expires parameter
-          const cdnMatch = content.match(/["']https?:\/\/[^"']+(?:\.mp4|\w+\/[a-f0-9]+)(?:[^"']*(?:Expires|expires)=[^"'&]+[^"']*)["']/i);
-          if (cdnMatch && cdnMatch[0]) {
-            extractedUrl = cdnMatch[0].replace(/^["']|["']$/g, '');
-            return;
+          // Check for URLs with expires parameter
+          const expiresMatch = scriptContent.match(/["']https?:\/\/[^"']+(?:\.mp4|\w+\/[a-f0-9]+)(?:[^"']*(?:Expires|expires)=[^"'&]+[^"']*)["']/i);
+          if (expiresMatch && expiresMatch[0]) {
+            return expiresMatch[0].replace(/^["']|["']$/g, '');
           }
-        });
-        
-        if (extractedUrl) {
-          return extractedUrl;
         }
         
         return null;
