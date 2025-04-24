@@ -1,5 +1,5 @@
 import NodeCache from 'node-cache';
-import { storage } from './storage';
+import { logInfo, logError, logWarn, logDebug } from './logger';
 import { InsertVideo } from '@shared/schema';
 
 // Cache for storing scraped URLs
@@ -64,6 +64,7 @@ const puppeteer = isReplitEnvironment ? mockPuppeteer : require('puppeteer');
  */
 export class VideoScraper {
   private browser: Browser | null = null;
+  private storage: any = null;
   private settings = {
     timeout: 30000, // 30 seconds
     autoRetry: true,
@@ -75,22 +76,21 @@ export class VideoScraper {
     if (!isReplitEnvironment) {
       this.initialize();
     } else {
-      storage.createLog({
-        level: 'INFO',
-        source: 'Scraper',
-        message: 'Running in Replit environment, using fallback mode'
-      });
+      logInfo('Scraper', 'Running in Replit environment, using fallback mode');
     }
+  }
+
+  /**
+   * Set the storage instance after initialization to avoid circular dependency
+   */
+  setStorage(storage: any) {
+    this.storage = storage;
     this.loadSettings();
   }
 
   private async initialize() {
     if (isReplitEnvironment) {
-      await storage.createLog({
-        level: 'INFO',
-        source: 'Scraper',
-        message: 'Skipping browser initialization in Replit environment'
-      });
+      logInfo('Scraper', 'Skipping browser initialization in Replit environment');
       return;
     }
     
@@ -114,17 +114,9 @@ export class VideoScraper {
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH // Use environment variable if available
       });
       
-      await storage.createLog({
-        level: 'INFO',
-        source: 'Scraper',
-        message: 'Browser initialized successfully'
-      });
+      logInfo('Scraper', 'Browser initialized successfully');
     } catch (error) {
-      await storage.createLog({
-        level: 'ERROR',
-        source: 'Scraper',
-        message: `Failed to initialize browser: ${error instanceof Error ? error.message : String(error)}`
-      });
+      logError('Scraper', `Failed to initialize browser: ${error instanceof Error ? error.message : String(error)}`);
       
       // Don't throw in Replit environment, we'll use fallbacks
       if (!isReplitEnvironment) {
@@ -134,16 +126,22 @@ export class VideoScraper {
   }
 
   private async loadSettings() {
-    const settings = await storage.getScraperSettings();
-    this.settings = {
-      timeout: settings.timeout * 1000, // Convert to milliseconds
-      autoRetry: settings.autoRetry,
-      cacheEnabled: settings.cacheEnabled,
-      cacheTTL: settings.cacheTTL,
-    };
+    if (!this.storage) return;
+    
+    try {
+      const settings = await this.storage.getScraperSettings();
+      this.settings = {
+        timeout: settings.timeout * 1000, // Convert to milliseconds
+        autoRetry: settings.autoRetry,
+        cacheEnabled: settings.cacheEnabled,
+        cacheTTL: settings.cacheTTL,
+      };
 
-    // Update cache TTL
-    videoCache.options.stdTTL = this.settings.cacheTTL;
+      // Update cache TTL
+      videoCache.options.stdTTL = this.settings.cacheTTL;
+    } catch (error) {
+      logError('Scraper', `Failed to load settings: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -153,13 +151,13 @@ export class VideoScraper {
    * @returns The scraped video information
    */
   async scrapeVideo(videoId: string): Promise<InsertVideo> {
+    if (!this.storage) {
+      throw new Error('Storage not initialized. Call setStorage first.');
+    }
+    
     // Check if the videoId has a valid format
     if (!this.isValidVideoId(videoId)) {
-      await storage.createLog({
-        level: 'ERROR',
-        source: 'Scraper',
-        message: `Invalid video ID format: ${videoId}`
-      });
+      logError('Scraper', `Invalid video ID format: ${videoId}`);
       throw new Error('Invalid video ID format');
     }
 
@@ -167,25 +165,17 @@ export class VideoScraper {
     if (this.settings.cacheEnabled) {
       const cachedData = videoCache.get<InsertVideo>(videoId);
       if (cachedData) {
-        await storage.createLog({
-          level: 'INFO',
-          source: 'Cache',
-          message: `Cache hit for video ID: ${videoId}`
-        });
+        logInfo('Cache', `Cache hit for video ID: ${videoId}`);
         return cachedData;
       }
       
-      await storage.createLog({
-        level: 'INFO',
-        source: 'Cache',
-        message: `Cache miss for video ID: ${videoId}, initiating scraper`
-      });
+      logInfo('Cache', `Cache miss for video ID: ${videoId}, initiating scraper`);
     }
 
     // Check if we have an existing record in storage
-    const existingVideo = await storage.getVideoByVideoId(videoId);
+    const existingVideo = await this.storage.getVideoByVideoId(videoId);
     if (existingVideo) {
-      await storage.incrementAccessCount(videoId);
+      await this.storage.incrementAccessCount(videoId);
       
       // Update cache
       if (this.settings.cacheEnabled) {
@@ -199,29 +189,21 @@ export class VideoScraper {
       
       return {
         videoId: existingVideo.videoId,
-        title: existingVideo.title,
+        title: existingVideo.title || null,
         url: existingVideo.url,
-        quality: existingVideo.quality
+        quality: existingVideo.quality || null
       };
     }
 
     // In Replit environment, use direct HTTP calls instead of Puppeteer
     if (isReplitEnvironment) {
-      await storage.createLog({
-        level: 'INFO',
-        source: 'Scraper',
-        message: `Using HTTP fallback for video ID: ${videoId} in Replit environment`
-      });
+      logInfo('Scraper', `Using HTTP fallback for video ID: ${videoId} in Replit environment`);
       
       try {
         // First, try to fetch data directly from the download page
         const embedUrl = `https://dl.letsembed.cc/?id=${videoId}`;
         
-        await storage.createLog({
-          level: 'INFO',
-          source: 'Scraper',
-          message: `Fetching from: ${embedUrl}`
-        });
+        logInfo('Scraper', `Fetching from: ${embedUrl}`);
         
         // Get the embed page
         const embedResponse = await fetch(embedUrl);
@@ -240,11 +222,7 @@ export class VideoScraper {
         }
         
         // Look directly for download links in the page 
-        await storage.createLog({
-          level: 'INFO',
-          source: 'Scraper',
-          message: `Analyzing download page for direct links`
-        });
+        logInfo('Scraper', `Analyzing download page for direct links`);
         
         // Try to extract video URL directly from the download page
         let videoUrl = '';
@@ -262,11 +240,7 @@ export class VideoScraper {
             videoUrl = `${embedUrlObj.origin}${videoUrl.startsWith('/') ? '' : '/'}${videoUrl}`;
           }
           
-          await storage.createLog({
-            level: 'INFO',
-            source: 'Scraper',
-            message: `Found download URL: ${videoUrl}`
-          });
+          logInfo('Scraper', `Found download URL: ${videoUrl}`);
           
           // Follow the download URL to get the final URL
           const downloadResponse = await fetch(videoUrl, {
@@ -276,11 +250,7 @@ export class VideoScraper {
           
           if (downloadResponse.ok && downloadResponse.url) {
             videoUrl = downloadResponse.url;
-            await storage.createLog({
-              level: 'INFO',
-              source: 'Scraper',
-              message: `Resolved final download URL: ${videoUrl}`
-            });
+            logInfo('Scraper', `Resolved final download URL: ${videoUrl}`);
           }
         }
         
@@ -289,11 +259,7 @@ export class VideoScraper {
           const sourceMatch = embedHtml.match(/source\s+src="([^"]+)"/i);
           if (sourceMatch && sourceMatch[1]) {
             videoUrl = sourceMatch[1];
-            await storage.createLog({
-              level: 'INFO',
-              source: 'Scraper',
-              message: `Found source URL: ${videoUrl}`
-            });
+            logInfo('Scraper', `Found source URL: ${videoUrl}`);
           }
         }
         
@@ -302,11 +268,7 @@ export class VideoScraper {
           const mp4Match = embedHtml.match(/["'](https?:\/\/[^"']+\.mp4[^"']*)["']/i);
           if (mp4Match && mp4Match[1]) {
             videoUrl = mp4Match[1];
-            await storage.createLog({
-              level: 'INFO',
-              source: 'Scraper',
-              message: `Found MP4 URL: ${videoUrl}`
-            });
+            logInfo('Scraper', `Found MP4 URL: ${videoUrl}`);
           }
         }
         
@@ -315,11 +277,7 @@ export class VideoScraper {
           const signedUrlMatch = embedHtml.match(/href="([^"]+\.mp4[^"]*signature=[^"&]+[^"]*)">/i);
           if (signedUrlMatch && signedUrlMatch[1]) {
             videoUrl = signedUrlMatch[1];
-            await storage.createLog({
-              level: 'INFO',
-              source: 'Scraper',
-              message: `Found signed URL: ${videoUrl}`
-            });
+            logInfo('Scraper', `Found signed URL: ${videoUrl}`);
           }
         }
         
@@ -329,21 +287,13 @@ export class VideoScraper {
           const directUrlMatch = embedHtml.match(/videoUrl\s*=\s*["']([^"']+\.mp4[^"']*(?:Expires|expires)=[^"']+)["']/i);
           if (directUrlMatch && directUrlMatch[1]) {
             videoUrl = directUrlMatch[1].replace(/\\([\/:~])/g, '$1'); // Remove escape slashes
-            await storage.createLog({
-              level: 'INFO',
-              source: 'Scraper',
-              message: `Found direct video URL in source code: ${videoUrl}`
-            });
+            logInfo('Scraper', `Found direct video URL in source code: ${videoUrl}`);
           }
         }
         
         // If URL extraction fails, use fallback sample videos
         if (!videoUrl) {
-          await storage.createLog({
-            level: 'WARN',
-            source: 'Scraper',
-            message: `Could not extract video URL, using fallback`
-          });
+          logWarn('Scraper', `Could not extract video URL, using fallback`);
           
           if (videoId === '12345' || parseInt(videoId) % 2 === 0) {
             videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
@@ -367,16 +317,12 @@ export class VideoScraper {
         }
         
         // Store in database
-        await storage.createVideo(videoInfo);
+        await this.storage.createVideo(videoInfo);
         
         return videoInfo;
         
       } catch (error) {
-        await storage.createLog({
-          level: 'ERROR',
-          source: 'Scraper',
-          message: `HTTP fallback failed for video ID ${videoId}: ${error instanceof Error ? error.message : String(error)}`
-        });
+        logError('Scraper', `HTTP fallback failed for video ID ${videoId}: ${error instanceof Error ? error.message : String(error)}`);
         
         // If HTTP fallback fails, use a sample video as absolute last resort
         let videoUrl, videoTitle;
@@ -401,7 +347,7 @@ export class VideoScraper {
         }
         
         // Store in database
-        await storage.createVideo(fallbackInfo);
+        await this.storage.createVideo(fallbackInfo);
         
         return fallbackInfo;
       }
@@ -423,60 +369,117 @@ export class VideoScraper {
       // Navigate to the letsembed page with the given ID
       const url = `https://dl.letsembed.cc/?id=${videoId}`;
       
-      await storage.createLog({
-        level: 'INFO',
-        source: 'Scraper',
-        message: `Navigating to: ${url}`
-      });
+      logInfo('Scraper', `Navigating to: ${url}`);
       
-      await page.goto(url, { timeout: this.settings.timeout });
-
-      // Wait for page to load
-      await page.waitForSelector('.container', { timeout: this.settings.timeout });
-
+      try {
+        await page.goto(url, { timeout: this.settings.timeout });
+      } catch (error) {
+        logError('Scraper', `Navigation timed out: ${error instanceof Error ? error.message : String(error)}`);
+        await page.close();
+        throw new Error('Navigation timed out');
+      }
+      
       // Extract video information
       const videoInfo = await this.extractVideoInfo(page, videoId);
       
-      // Close page
+      // Close the page to free resources
       await page.close();
-
+      
       // Update cache
       if (this.settings.cacheEnabled) {
         videoCache.set(videoId, videoInfo, this.settings.cacheTTL);
       }
-
-      // Store in database
-      await storage.createVideo(videoInfo);
       
-      await storage.createLog({
-        level: 'INFO',
-        source: 'Scraper',
-        message: `Successfully extracted URL for ID ${videoId}`
-      });
-
+      // Store in database
+      await this.storage.createVideo(videoInfo);
+      
       return videoInfo;
     } catch (error) {
-      await storage.createLog({
-        level: 'ERROR',
-        source: 'Scraper',
-        message: `Failed to scrape video ID ${videoId}: ${error instanceof Error ? error.message : String(error)}`
-      });
-
-      // Auto-retry if enabled
+      logError('Scraper', `Error scraping video: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // Check if we should retry
       if (this.settings.autoRetry) {
-        await storage.createLog({
-          level: 'INFO',
-          source: 'Scraper',
-          message: `Auto-retrying video ID ${videoId}`
-        });
-        
-        // Reinitialize browser
-        await this.closeBrowser();
-        await this.initialize();
-        
-        return this.scrapeVideo(videoId);
+        logInfo('Scraper', `Auto-retry enabled, attempting alternative method for ${videoId}`);
+        // Use the fallback HTTP method as a retry mechanism
+        try {
+          const fallbackResult = await this.fallbackHTTPScrape(videoId);
+          return fallbackResult;
+        } catch (fallbackError) {
+          logError('Scraper', `Fallback method also failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
+          throw new Error(`Failed to scrape video: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
-
+      
+      throw error;
+    }
+  }
+  
+  /**
+   * Fallback HTTP scraping method
+   */
+  private async fallbackHTTPScrape(videoId: string): Promise<InsertVideo> {
+    logInfo('Scraper', `Using HTTP fallback for video ID: ${videoId}`);
+    
+    const url = `https://dl.letsembed.cc/?id=${videoId}`;
+    
+    try {
+      const response = await fetch(url);
+      const html = await response.text();
+      
+      let videoTitle = `Video ${videoId}`;
+      const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+      if (titleMatch && titleMatch[1]) {
+        videoTitle = titleMatch[1].trim().replace(' - letsembed.cc', '');
+      }
+      
+      let videoUrl = '';
+      
+      // Check for download buttons
+      const downloadUrlMatch = html.match(/class="(?:btn\s+)?download-btn.*?href="([^"]+)"/i);
+      if (downloadUrlMatch && downloadUrlMatch[1]) {
+        videoUrl = downloadUrlMatch[1];
+        if (!videoUrl.startsWith('http')) {
+          const urlObj = new URL(url);
+          videoUrl = `${urlObj.origin}${videoUrl.startsWith('/') ? '' : '/'}${videoUrl}`;
+        }
+      }
+      
+      // Check for source tags
+      if (!videoUrl) {
+        const sourceMatch = html.match(/source\s+src="([^"]+)"/i);
+        if (sourceMatch && sourceMatch[1]) {
+          videoUrl = sourceMatch[1];
+        }
+      }
+      
+      // Check for mp4 links
+      if (!videoUrl) {
+        const mp4Match = html.match(/["'](https?:\/\/[^"']+\.mp4[^"']*)["']/i);
+        if (mp4Match && mp4Match[1]) {
+          videoUrl = mp4Match[1];
+        }
+      }
+      
+      // Check for videoUrl in JS
+      if (!videoUrl) {
+        const directUrlMatch = html.match(/videoUrl\s*=\s*["']([^"']+\.mp4[^"']*(?:Expires|expires)=[^"']+)["']/i);
+        if (directUrlMatch && directUrlMatch[1]) {
+          videoUrl = directUrlMatch[1].replace(/\\([\/:~])/g, '$1');
+        }
+      }
+      
+      if (!videoUrl) {
+        throw new Error('Could not extract video URL from HTML');
+      }
+      
+      return {
+        videoId,
+        title: videoTitle,
+        url: videoUrl,
+        quality: 'HD'
+      };
+    } catch (error) {
+      logError('Scraper', `HTTP fallback failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -485,142 +488,82 @@ export class VideoScraper {
    * Extracts video information from the page
    */
   private async extractVideoInfo(page: Page, videoId: string): Promise<InsertVideo> {
-    // Set up request interception to capture the video URL
-    let videoUrl = '';
-    let videoQuality = 'HD'; // Default quality
-    let videoTitle = 'Video ' + videoId;
-    
-    // Setup network request interception
-    await page.setRequestInterception(true);
-    
-    page.on('request', request => {
-      request.continue();
-    });
-    
-    // Listen for responses to capture the video URL
-    page.on('response', async response => {
-      const url = response.url();
+    try {
+      // Wait for the download button to be visible
+      await page.waitForSelector('.download-btn', { timeout: this.settings.timeout });
       
-      // Look for MP4 video responses
-      if (url.includes('.mp4') && url.includes('signature=') && url.includes('pair=')) {
-        videoUrl = url;
-        await storage.createLog({
-          level: 'DEBUG',
-          source: 'Scraper',
-          message: `Captured video URL: ${videoUrl}`
-        });
-      }
-    });
-    
-    // Try to extract video title from the page
-    try {
-      videoTitle = await page.evaluate(() => {
-        const titleElement = document.querySelector('h1');
-        return titleElement ? titleElement.textContent?.trim() || 'Video' : 'Video';
+      // Extract the video title
+      const title = await page.evaluate(() => {
+        const titleElement = document.querySelector('h1.title');
+        return titleElement ? titleElement.textContent?.trim() : document.title.replace(' - letsembed.cc', '').trim();
       });
-    } catch (error) {
-      // If title extraction fails, use default
-      videoTitle = 'Video ' + videoId;
-    }
-    
-    // Try to extract video quality from the page
-    try {
-      videoQuality = await page.evaluate(() => {
-        const qualityElement = document.querySelector('[data-quality]');
-        return qualityElement ? qualityElement.getAttribute('data-quality') || 'HD' : 'HD';
-      });
-    } catch (error) {
-      // If quality extraction fails, use default
-      videoQuality = 'HD';
-    }
-    
-    // Click the download button to trigger the download request
-    await page.evaluate(() => {
-      const downloadBtn = document.querySelector('a.download-btn') as HTMLElement;
-      if (downloadBtn) {
-        downloadBtn.click();
-      }
-    });
-    
-    // Wait some time for the response to be captured
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // If we still don't have a URL, try to find it in available links
-    if (!videoUrl) {
-      videoUrl = await page.evaluate(() => {
-        const links = Array.from(document.querySelectorAll('a'));
-        for (const link of links) {
-          const href = link.getAttribute('href');
-          if (href && href.includes('.mp4') && href.includes('signature=') && href.includes('pair=')) {
-            return href;
-          }
+      
+      // Extract the video URL
+      const videoUrl = await page.evaluate(() => {
+        // This captures the URL from JavaScript variables
+        // @ts-ignore
+        if (typeof videoUrl !== 'undefined') {
+          // @ts-ignore
+          return videoUrl;
         }
-        return '';
-      });
-    }
-    
-    // If we still don't have a URL, try to find it in the page's JavaScript
-    if (!videoUrl) {
-      try {
-        videoUrl = await page.evaluate(() => {
-          // Check for videoUrl variable in page scripts
-          const scripts = Array.from(document.querySelectorAll('script'));
-          for (const script of scripts) {
-            const content = script.textContent || '';
-            const match = content.match(/videoUrl\s*=\s*["']([^"']+\.mp4[^"']*(?:Expires|expires)=[^"']+)["']/i);
-            if (match && match[1]) {
-              // Return the URL, removing escaped characters
-              return match[1].replace(/\\([\/:~])/g, '$1');
-            }
-          }
-          return '';
-        });
         
-        if (videoUrl) {
-          await storage.createLog({
-            level: 'INFO',
-            source: 'Scraper',
-            message: `Found video URL in page JavaScript: ${videoUrl}`
-          });
+        // Try getting the URL from the download button
+        const downloadBtn = document.querySelector('.download-btn');
+        if (downloadBtn && downloadBtn.getAttribute('href')) {
+          return downloadBtn.getAttribute('href');
         }
-      } catch (error) {
-        await storage.createLog({
-          level: 'WARN',
-          source: 'Scraper',
-          message: `Error extracting URL from JavaScript: ${error}`
-        });
+        
+        // Try getting the URL from video source
+        const videoSource = document.querySelector('video source');
+        if (videoSource && videoSource.getAttribute('src')) {
+          return videoSource.getAttribute('src');
+        }
+        
+        return null;
+      });
+      
+      if (!videoUrl) {
+        throw new Error('Could not extract video URL');
       }
+      
+      // Get the video quality
+      const quality = await page.evaluate(() => {
+        const qualityElement = document.querySelector('.quality');
+        return qualityElement ? qualityElement.textContent?.trim() : 'HD';
+      });
+      
+      return {
+        videoId,
+        title: title || 'Unknown Video',
+        url: videoUrl,
+        quality: quality || 'HD'
+      };
+    } catch (error) {
+      logError('Scraper', `Failed to extract video info: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error('Failed to extract video information');
     }
-    
-    // If we still don't have a URL, throw an error
-    if (!videoUrl) {
-      throw new Error('Failed to extract video URL');
-    }
-    
-    return {
-      videoId,
-      title: videoTitle,
-      url: videoUrl,
-      quality: videoQuality
-    };
   }
 
   /**
    * Refreshes the cache for a specific video
    */
   async refreshCache(videoId: string): Promise<InsertVideo> {
+    if (!this.storage) {
+      throw new Error('Storage not initialized. Call setStorage first.');
+    }
+    
     // Remove from cache
     videoCache.del(videoId);
     
-    // Update storage
-    await storage.createLog({
-      level: 'INFO',
-      source: 'Cache',
-      message: `Refreshing cache for video ID: ${videoId}`
-    });
+    // Re-scrape and update storage
+    const freshVideo = await this.scrapeVideo(videoId);
     
-    // Re-scrape
-    return this.scrapeVideo(videoId);
+    // Update in database
+    await this.storage.updateVideo(videoId, freshVideo.url);
+    
+    logInfo('Cache', `Refreshed cache for video ID: ${videoId}`);
+    
+    return freshVideo;
   }
 
   /**
@@ -628,11 +571,7 @@ export class VideoScraper {
    */
   async clearCache(): Promise<void> {
     videoCache.flushAll();
-    await storage.createLog({
-      level: 'INFO',
-      source: 'Cache',
-      message: 'Cache cleared'
-    });
+    logInfo('Cache', 'Video cache cleared');
   }
 
   /**
@@ -644,6 +583,10 @@ export class VideoScraper {
     cacheEnabled?: boolean;
     cacheTTL?: number;
   }): Promise<void> {
+    if (!this.storage) {
+      throw new Error('Storage not initialized. Call setStorage first.');
+    }
+    
     if (settings.timeout !== undefined) {
       this.settings.timeout = settings.timeout * 1000; // Convert to milliseconds
     }
@@ -661,27 +604,23 @@ export class VideoScraper {
       videoCache.options.stdTTL = settings.cacheTTL;
     }
     
-    // Save settings to storage
-    await storage.updateScraperSettings({
-      timeout: this.settings.timeout / 1000, // Convert to seconds for storage
+    // Update in database
+    await this.storage.updateScraperSettings({
+      timeout: settings.timeout !== undefined ? settings.timeout : this.settings.timeout / 1000,
       autoRetry: this.settings.autoRetry,
       cacheEnabled: this.settings.cacheEnabled,
       cacheTTL: this.settings.cacheTTL
     });
     
-    await storage.createLog({
-      level: 'INFO',
-      source: 'Scraper',
-      message: 'Scraper settings updated'
-    });
+    logInfo('Scraper', 'Settings updated');
   }
 
   /**
    * Validates a video ID format
    */
   private isValidVideoId(videoId: string): boolean {
-    // Simple validation - ensure it contains only digits
-    return /^\d+$/.test(videoId);
+    // Simple validation for now - check if it's alphanumeric and a reasonable length
+    return /^[a-zA-Z0-9_-]{4,30}$/.test(videoId);
   }
 
   /**
@@ -691,9 +630,9 @@ export class VideoScraper {
     if (this.browser) {
       await this.browser.close();
       this.browser = null;
+      logInfo('Scraper', 'Browser closed');
     }
   }
 }
 
-// Export singleton instance
 export const videoScraper = new VideoScraper();

@@ -6,6 +6,7 @@ import {
   type Log, type InsertLog,
   type ScraperSettings
 } from "@shared/schema";
+import { telegramBot } from './telegram';
 
 export interface IStorage {
   // User methods
@@ -129,6 +130,14 @@ export class MemStorage implements IStorage {
       accessCount: 0 
     };
     this.videos.set(id, video);
+    
+    // If Telegram channel storage is enabled, save to channel
+    if (telegramBot.isChannelStorageEnabled()) {
+      telegramBot.saveVideo(video).catch(error => {
+        console.error('Failed to save video to Telegram channel:', error);
+      });
+    }
+    
     return video;
   }
   
@@ -184,6 +193,14 @@ export class MemStorage implements IStorage {
       addedAt: new Date() 
     };
     this.domains.set(id, domain);
+    
+    // If Telegram channel storage is enabled, save to channel
+    if (telegramBot.isChannelStorageEnabled()) {
+      telegramBot.saveDomain(domain).catch(error => {
+        console.error('Failed to save domain to Telegram channel:', error);
+      });
+    }
+    
     return domain;
   }
   
@@ -231,6 +248,14 @@ export class MemStorage implements IStorage {
       timestamp: new Date() 
     };
     this.logs.set(id, log);
+    
+    // If Telegram channel storage is enabled, save to channel
+    if (telegramBot.isChannelStorageEnabled()) {
+      telegramBot.saveLog(log).catch(error => {
+        console.error('Failed to save log to Telegram channel:', error);
+      });
+    }
+    
     return log;
   }
   
@@ -253,6 +278,14 @@ export class MemStorage implements IStorage {
   
   async updateScraperSettings(settings: Partial<ScraperSettings>): Promise<ScraperSettings> {
     this.scraperSettings = { ...this.scraperSettings, ...settings };
+    
+    // If Telegram channel storage is enabled, save to channel
+    if (telegramBot.isChannelStorageEnabled()) {
+      telegramBot.saveSettings(this.scraperSettings).catch(error => {
+        console.error('Failed to save settings to Telegram channel:', error);
+      });
+    }
+    
     return this.scraperSettings;
   }
 }

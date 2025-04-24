@@ -256,6 +256,75 @@ export class TelegramBot {
         });
       }
     });
+    
+    // Enable Telegram channel storage
+    this.bot.command('channel_enable', requireAdmin, async (ctx) => {
+      const args = ctx.message.text.split(' ');
+      const channelId = args[1];
+      
+      try {
+        if (!channelId && !this.channelStorage.channelId) {
+          await ctx.reply('Please provide a channel ID: /channel_enable [channelId]');
+          return;
+        }
+        
+        this.enableChannelStorage(channelId);
+        await ctx.reply(`✅ Telegram channel storage enabled for channel: ${this.channelStorage.channelId}`);
+        
+        // Test the channel by sending a test message
+        const testResult = await this.saveToChannel('test', { message: 'Channel storage test successful' });
+        
+        if (testResult) {
+          await ctx.reply('✅ Test message sent to channel successfully!');
+        } else {
+          await ctx.reply('⚠️ Channel storage enabled but test message failed. Make sure the bot is an admin in the channel.');
+        }
+        
+      } catch (error) {
+        await ctx.reply(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+        
+        storage.createLog({
+          level: 'ERROR',
+          source: 'Telegram',
+          message: `Failed to enable channel storage: ${error instanceof Error ? error.message : String(error)}`
+        });
+      }
+    });
+    
+    // Disable Telegram channel storage
+    this.bot.command('channel_disable', requireAdmin, async (ctx) => {
+      try {
+        this.disableChannelStorage();
+        await ctx.reply('✅ Telegram channel storage disabled');
+        
+        storage.createLog({
+          level: 'INFO',
+          source: 'Telegram',
+          message: 'Channel storage disabled via Telegram'
+        });
+      } catch (error) {
+        await ctx.reply(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+        
+        storage.createLog({
+          level: 'ERROR',
+          source: 'Telegram',
+          message: `Failed to disable channel storage: ${error instanceof Error ? error.message : String(error)}`
+        });
+      }
+    });
+    
+    // Check Telegram channel storage status
+    this.bot.command('channel_status', requireAdmin, async (ctx) => {
+      const enabled = this.isChannelStorageEnabled();
+      const channelId = this.channelStorage.channelId;
+      
+      await ctx.reply(
+        '📊 Channel Storage Status\n' +
+        '------------------------\n' +
+        `${enabled ? '🟢 Enabled' : '🔴 Disabled'}\n` +
+        `Channel ID: ${channelId || 'Not set'}`
+      );
+    });
   }
   
   /**

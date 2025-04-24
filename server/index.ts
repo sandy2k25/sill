@@ -1,9 +1,18 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
+import { videoScraper } from "./scraper";
+import { initLogger } from "./logger";
 
 // Set Replit environment flag for use in conditional code paths
 process.env.REPLIT_ENVIRONMENT = "true";
+
+// Initialize the logger with storage for logging
+initLogger(storage);
+
+// Initialize the scraper with storage for database access
+videoScraper.setStorage(storage);
 
 const app = express();
 app.use(express.json());
