@@ -13,9 +13,13 @@ export async function verifyOrigin(req: Request): Promise<boolean> {
   const origin = req.get('origin');
   const referer = req.get('referer');
   
-  // If neither origin nor referer, it's likely a direct API call - allow
+  // If neither origin nor referer, check if it's a protected endpoint
+  // If it's an admin endpoint, allow direct API calls
   if (!origin && !referer) {
-    return true;
+    const isAdminEndpoint = req.path.includes('/admin') || 
+                          req.path.includes('/auth') || 
+                          req.path === '/api/auth/login';
+    return isAdminEndpoint;
   }
   
   try {
@@ -53,8 +57,10 @@ export async function verifyOrigin(req: Request): Promise<boolean> {
  * Middleware to enforce Content-Security-Policy and other headers for embed protection
  */
 export function embedProtectionMiddleware(req: Request, res: Response, next: NextFunction) {
-  // Set security headers to prevent embedding on non-whitelisted domains
+  // Set strict security headers to prevent embedding on non-whitelisted domains
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   
   // Handle the /api/video/* routes specifically
   if (req.path.startsWith('/api/video/')) {

@@ -417,7 +417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/logs', async (req, res) => {
+  app.post('/api/logs', authMiddleware, async (req, res) => {
     try {
       const validatedLog = insertLogSchema.parse(req.body);
       const log = await storage.createLog(validatedLog);
@@ -521,7 +521,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Telegram bot at startup if token exists
   if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.length > 10) {
     console.log('Starting Telegram bot...');
-    telegramBot.start().catch(error => {
+    telegramBot.start().then(() => {
+      // If channel ID is provided, enable channel storage
+      if (process.env.TELEGRAM_CHANNEL_ID) {
+        console.log('Enabling Telegram channel database with ID:', process.env.TELEGRAM_CHANNEL_ID);
+        telegramBot.enableChannelStorage(process.env.TELEGRAM_CHANNEL_ID);
+      }
+    }).catch(error => {
       console.error('Failed to start Telegram bot:', error);
     });
   } else {
