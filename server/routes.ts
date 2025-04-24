@@ -140,9 +140,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
               width: 100%;
               height: 100%;
             }
+            .wovie-logo {
+              position: absolute;
+              top: 10px;
+              right: 10px;
+              color: white;
+              font-family: Arial, sans-serif;
+              font-weight: bold;
+              font-size: 16px;
+              z-index: 99;
+              background-color: rgba(0, 0, 0, 0.5);
+              padding: 5px 10px;
+              border-radius: 5px;
+              pointer-events: none;
+              text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+            }
           </style>
         </head>
         <body>
+          <div class="wovie-logo">WovIe Player</div>
           <video id="player" playsinline controls>
             <source src="${video.url}" type="video/mp4">
           </video>
@@ -235,9 +251,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
               width: 100%;
               height: 100%;
             }
+            .wovie-logo {
+              position: absolute;
+              top: 10px;
+              right: 10px;
+              color: white;
+              font-family: Arial, sans-serif;
+              font-weight: bold;
+              font-size: 16px;
+              z-index: 99;
+              background-color: rgba(0, 0, 0, 0.5);
+              padding: 5px 10px;
+              border-radius: 5px;
+              pointer-events: none;
+              text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+            }
           </style>
         </head>
         <body>
+          <div class="wovie-logo">WovIe Player</div>
           <video id="player" playsinline controls>
             <source src="${video.url}" type="video/mp4">
           </video>
