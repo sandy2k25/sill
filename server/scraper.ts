@@ -294,10 +294,28 @@ export class VideoScraper {
         
         // Specifically look for macdn.hakunaymatata.com URLs in a script 
         if (!videoUrl) {
-          const hakunaUrlMatch = embedHtml.match(/["']https?:\/\/macdn\.hakunaymatata\.com\/resource\/[a-f0-9]+\.mp4\?(?:Expires|expires)=[0-9]+&(?:Signature|signature)=[^"'&]+&Key-Pair-Id=[^"'&]+["']/i);
-          if (hakunaUrlMatch && hakunaUrlMatch[0]) {
-            videoUrl = hakunaUrlMatch[0].replace(/^["']|["']$/g, '').replace(/\\([\/:~])/g, '$1');
-            logInfo('Scraper', `Found macdn.hakunaymatata.com URL pattern: ${videoUrl}`);
+          // First pattern: Search for direct videoUrl assignments with hakunaymatata.com URLs
+          const hakunaUrlMatch = embedHtml.match(/videoUrl\s*=\s*["']?(https?:\/\/macdn\.hakunaymatata\.com\/resource\/[a-f0-9]+\.mp4\?(?:Expires|expires)=[0-9]+&(?:Signature|signature)=[^"'&]+&Key-Pair-Id=[^"'&]+)["']?/i);
+          if (hakunaUrlMatch && hakunaUrlMatch[1]) {
+            videoUrl = hakunaUrlMatch[1].replace(/\\([\/:~])/g, '$1');
+            logInfo('Scraper', `Found macdn.hakunaymatata.com URL pattern from videoUrl assignment: ${videoUrl}`);
+          } 
+          // Second pattern: Look for URLs directly in the HTML
+          else {
+            const directHakunaMatch = embedHtml.match(/["'](https?:\/\/macdn\.hakunaymatata\.com\/resource\/[a-f0-9]+\.mp4\?(?:Expires|expires)=[0-9]+&(?:Signature|signature)=[^"'&]+&Key-Pair-Id=[^"'&]+)["']/i);
+            if (directHakunaMatch && directHakunaMatch[1]) {
+              videoUrl = directHakunaMatch[1].replace(/\\([\/:~])/g, '$1');
+              logInfo('Scraper', `Found macdn.hakunaymatata.com URL pattern in HTML: ${videoUrl}`);
+            }
+          }
+        }
+        
+        // Look for URL in download button onclick handlers
+        if (!videoUrl) {
+          const onClickMatch = embedHtml.match(/download[^>]+onclick=["'](?:window\.open\()?["']?(https?:\/\/[^"'\)]+)["']?\)?["']/i);
+          if (onClickMatch && onClickMatch[1]) {
+            videoUrl = onClickMatch[1];
+            logInfo('Scraper', `Found URL in download button onclick: ${videoUrl}`);
           }
         }
         
@@ -529,7 +547,53 @@ export class VideoScraper {
         return titleElement ? titleElement.textContent?.trim() : document.title.replace(' - letsembed.cc', '').trim();
       });
       
-      // Extract the video URL using simpler methods
+      // Try to find the download button and click it to trigger URL generation
+      try {
+        // Set up an event listener to capture network requests
+        await page.setRequestInterception(true);
+        let capturedVideoUrl: string | null = null;
+        
+        page.on('request', (request: Request) => {
+          const url = request.url();
+          // Look for MP4 or video content requests
+          if (url.includes('.mp4') || url.includes('macdn.hakunaymatata.com')) {
+            logInfo('Scraper', `Captured video request URL: ${url}`);
+            capturedVideoUrl = url;
+          }
+          request.continue();
+        });
+        
+        // Try clicking the download button to trigger network requests
+        await page.evaluate(() => {
+          const downloadBtn = document.querySelector('.download-btn') as HTMLElement;
+          if (downloadBtn) {
+            // Try to click the button
+            downloadBtn.click();
+          }
+        });
+        
+        // Give some time for the requests to be captured
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Turn off request interception
+        await page.setRequestInterception(false);
+        
+        // If we captured a URL from the network requests, use it
+        if (capturedVideoUrl) {
+          logInfo('Scraper', `Using captured URL from network request: ${capturedVideoUrl}`);
+          return {
+            videoId,
+            title: title || 'Unknown Video',
+            url: capturedVideoUrl,
+            quality: 'HD'
+          };
+        }
+      } catch (error) {
+        logWarn('Scraper', `Network request capture failed: ${error instanceof Error ? error.message : String(error)}`);
+        // Continue with other extraction methods
+      }
+      
+      // Extract the video URL using alternate methods if network capture failed
       const videoUrl = await page.evaluate(() => {
         // First try: check for global videoUrl variable
         // @ts-ignore - intentionally accessing page's global scope
@@ -666,8 +730,8 @@ export class VideoScraper {
    * Validates a video ID format
    */
   private isValidVideoId(videoId: string): boolean {
-    // Simple validation for now - check if it's alphanumeric and a reasonable length
-    return /^[a-zA-Z0-9_-]{4,30}$/.test(videoId);
+    // Allow numeric IDs of any length and alphanumeric IDs
+    return /^[0-9]+$/.test(videoId) || /^[a-zA-Z0-9_-]{2,30}$/.test(videoId);
   }
 
   /**
