@@ -416,13 +416,23 @@ export class VideoScraper {
           quality: 'HD'
         };
         
-        // Update cache with proper cache key that includes season/episode if provided
-        if (this.settings.cacheEnabled) {
-          videoCache.set(cacheKey, videoInfo, this.settings.cacheTTL);
-        }
-        
-        // Store in database
+        // Store in database - always store the base video with the current URL
+        // This helps with organization and tracking the most recent URL
         await this.storage.createVideo(videoInfo);
+        
+        // For season/episode specific requests, only cache with the specific key
+        // Do not update the base videoId cache to prevent conflicts
+        if (this.settings.cacheEnabled) {
+          if (season || episode) {
+            // Store in cache with the composite key (with season/episode)
+            videoCache.set(cacheKey, videoInfo, this.settings.cacheTTL);
+            logInfo('Cache', `Cached season/episode specific URL with key: ${cacheKey}`);
+          } else {
+            // Store in cache with the base videoId key (no season/episode)
+            videoCache.set(videoId, videoInfo, this.settings.cacheTTL);
+            logInfo('Cache', `Cached base URL with key: ${videoId}`);
+          }
+        }
         
         return videoInfo;
         
@@ -446,13 +456,21 @@ export class VideoScraper {
           quality: 'HD'
         };
         
-        // Update cache
-        if (this.settings.cacheEnabled) {
-          videoCache.set(videoId, fallbackInfo, this.settings.cacheTTL);
-        }
-        
         // Store in database
         await this.storage.createVideo(fallbackInfo);
+        
+        // Update cache with the appropriate cache key
+        if (this.settings.cacheEnabled) {
+          if (season || episode) {
+            // Cache with season/episode specific key
+            videoCache.set(cacheKey, fallbackInfo, this.settings.cacheTTL);
+            logInfo('Cache', `Cached fallback content with season/episode key: ${cacheKey}`);
+          } else {
+            // Cache with base videoId
+            videoCache.set(videoId, fallbackInfo, this.settings.cacheTTL);
+            logInfo('Cache', `Cached fallback content with base key: ${videoId}`);
+          }
+        }
         
         return fallbackInfo;
       }
@@ -490,13 +508,21 @@ export class VideoScraper {
       // Close the page to free resources
       await page.close();
       
-      // Update cache
-      if (this.settings.cacheEnabled) {
-        videoCache.set(videoId, videoInfo, this.settings.cacheTTL);
-      }
-      
       // Store in database
       await this.storage.createVideo(videoInfo);
+      
+      // Update cache with the appropriate cache key
+      if (this.settings.cacheEnabled) {
+        if (season || episode) {
+          // Store in cache with the composite key (with season/episode)
+          videoCache.set(cacheKey, videoInfo, this.settings.cacheTTL);
+          logInfo('Cache', `Cached puppeteer-extracted URL with season/episode key: ${cacheKey}`);
+        } else {
+          // Store in cache with the base videoId key (no season/episode)
+          videoCache.set(videoId, videoInfo, this.settings.cacheTTL);
+          logInfo('Cache', `Cached puppeteer-extracted URL with base key: ${videoId}`);
+        }
+      }
       
       return videoInfo;
     } catch (error) {
@@ -820,22 +846,46 @@ export class VideoScraper {
 
   /**
    * Refreshes the cache for a specific video
+   * @param videoId - The ID of the video to refresh
+   * @param season - Optional season number
+   * @param episode - Optional episode number
+   * @returns The freshly scraped video information
    */
-  async refreshCache(videoId: string): Promise<InsertVideo> {
+  async refreshCache(videoId: string, season?: string | number, episode?: string | number): Promise<InsertVideo> {
     if (!this.storage) {
       throw new Error('Storage not initialized. Call setStorage first.');
     }
     
-    // Remove from cache
-    videoCache.del(videoId);
+    // Create the appropriate cache key
+    const cacheKey = season && episode 
+      ? `${videoId}_s${season}_e${episode}` 
+      : videoId;
     
-    // Re-scrape and update storage
-    const freshVideo = await this.scrapeVideo(videoId);
+    // Remove from cache using the appropriate key
+    videoCache.del(cacheKey);
     
-    // Update in database
+    // If it's a base videoId with no season/episode, also clear any season/episode variants
+    if (!season && !episode) {
+      // Get all keys from cache
+      const keys = videoCache.keys();
+      
+      // Find and delete any keys that start with this videoId (season/episode variants)
+      const variantPattern = new RegExp(`^${videoId}_s`);
+      keys.forEach(key => {
+        if (variantPattern.test(key)) {
+          videoCache.del(key);
+          logInfo('Cache', `Also cleared season/episode variant: ${key}`);
+        }
+      });
+    }
+    
+    // Re-scrape with the appropriate parameters
+    const freshVideo = await this.scrapeVideo(videoId, season, episode);
+    
+    // Update in database (base video entry only)
     await this.storage.updateVideo(videoId, freshVideo.url);
     
-    logInfo('Cache', `Refreshed cache for video ID: ${videoId}`);
+    logInfo('Cache', `Refreshed cache for: ${cacheKey}`);
     
     return freshVideo;
   }

@@ -323,9 +323,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post('/api/cache/refresh/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
+    const { season, episode } = req.body; // Optional parameters for season/episode
     
     try {
-      const video = await videoScraper.refreshCache(id);
+      const video = await videoScraper.refreshCache(id, season, episode);
+      return res.json({ 
+        success: true, 
+        data: video 
+      });
+    } catch (error) {
+      return res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'An unknown error occurred' 
+      });
+    }
+  });
+  
+  // Another endpoint specifically for season/episode refresh requests
+  app.post('/api/cache/refresh/:id/:season/:episode', authMiddleware, async (req, res) => {
+    const { id, season, episode } = req.params;
+    
+    try {
+      const video = await videoScraper.refreshCache(id, season, episode);
       return res.json({ 
         success: true, 
         data: video 
