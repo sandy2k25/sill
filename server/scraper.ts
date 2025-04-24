@@ -145,12 +145,14 @@ export class VideoScraper {
   }
 
   /**
-   * Scrapes a video URL from letsembed.cc by video ID
+   * Scrapes a video URL from letsembed.cc by video ID, with optional season and episode parameters
    * 
    * @param videoId - The ID of the video to scrape
+   * @param season - Optional season number
+   * @param episode - Optional episode number
    * @returns The scraped video information
    */
-  async scrapeVideo(videoId: string): Promise<InsertVideo> {
+  async scrapeVideo(videoId: string, season?: string | number, episode?: string | number): Promise<InsertVideo> {
     if (!this.storage) {
       throw new Error('Storage not initialized. Call setStorage first.');
     }
@@ -161,15 +163,23 @@ export class VideoScraper {
       throw new Error('Invalid video ID format');
     }
 
+    // If season and episode are provided, create a composite cache key
+    // This allows us to cache different season/episode combinations for the same base videoId
+    const cacheKey = season && episode 
+      ? `${videoId}_s${season}_e${episode}` 
+      : videoId;
+      
+    logInfo('Scraper', `Scraping video with ID: ${videoId}${season ? `, Season: ${season}` : ''}${episode ? `, Episode: ${episode}` : ''}`);
+
     // Check cache if enabled
     if (this.settings.cacheEnabled) {
-      const cachedData = videoCache.get<InsertVideo>(videoId);
+      const cachedData = videoCache.get<InsertVideo>(cacheKey);
       if (cachedData) {
-        logInfo('Cache', `Cache hit for video ID: ${videoId}`);
+        logInfo('Cache', `Cache hit for video ID: ${cacheKey}`);
         return cachedData;
       }
       
-      logInfo('Cache', `Cache miss for video ID: ${videoId}, initiating scraper`);
+      logInfo('Cache', `Cache miss for video ID: ${cacheKey}, initiating scraper`);
     }
 
     // Check if we have an existing record in storage
@@ -200,8 +210,14 @@ export class VideoScraper {
       logInfo('Scraper', `Using HTTP fallback for video ID: ${videoId} in Replit environment`);
       
       try {
-        // First, try to fetch data directly from the download page
-        const embedUrl = `https://dl.letsembed.cc/?id=${videoId}`;
+        // Build the URL with season and episode parameters if provided
+        let embedUrl = `https://dl.letsembed.cc/?id=${videoId}`;
+        if (season !== undefined) {
+          embedUrl += `&season=${season}`;
+        }
+        if (episode !== undefined) {
+          embedUrl += `&episode=${episode}`;
+        }
         
         logInfo('Scraper', `Fetching from: ${embedUrl}`);
         
@@ -393,9 +409,9 @@ export class VideoScraper {
           quality: 'HD'
         };
         
-        // Update cache
+        // Update cache with proper cache key that includes season/episode if provided
         if (this.settings.cacheEnabled) {
-          videoCache.set(videoId, videoInfo, this.settings.cacheTTL);
+          videoCache.set(cacheKey, videoInfo, this.settings.cacheTTL);
         }
         
         // Store in database
