@@ -559,6 +559,39 @@ export class VideoScraper {
       });
     }
     
+    // If we still don't have a URL, try to find it in the page's JavaScript
+    if (!videoUrl) {
+      try {
+        videoUrl = await page.evaluate(() => {
+          // Check for videoUrl variable in page scripts
+          const scripts = Array.from(document.querySelectorAll('script'));
+          for (const script of scripts) {
+            const content = script.textContent || '';
+            const match = content.match(/videoUrl\s*=\s*["']([^"']+\.mp4[^"']*(?:Expires|expires)=[^"']+)["']/i);
+            if (match && match[1]) {
+              // Return the URL, removing escaped characters
+              return match[1].replace(/\\([\/:~])/g, '$1');
+            }
+          }
+          return '';
+        });
+        
+        if (videoUrl) {
+          await storage.createLog({
+            level: 'INFO',
+            source: 'Scraper',
+            message: `Found video URL in page JavaScript: ${videoUrl}`
+          });
+        }
+      } catch (error) {
+        await storage.createLog({
+          level: 'WARN',
+          source: 'Scraper',
+          message: `Error extracting URL from JavaScript: ${error}`
+        });
+      }
+    }
+    
     // If we still don't have a URL, throw an error
     if (!videoUrl) {
       throw new Error('Failed to extract video URL');
