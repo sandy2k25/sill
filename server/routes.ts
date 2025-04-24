@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { videoScraper } from "./scraper";
 import { telegramBot } from "./telegram";
-import { verifyOrigin, getSystemStats } from "./utils";
+import { verifyOrigin, getSystemStats, embedProtectionMiddleware } from "./utils";
 import { z } from "zod";
 import { insertDomainSchema, insertLogSchema } from "@shared/schema";
 import { authMiddleware, loginAdmin } from "./auth";
@@ -87,6 +87,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // taah/id - Video player endpoint - handled by React router
   // We'll implement this using React routing
+  
+  // fulltaah/id - Full-page embed with Plyr.io player
+  app.get('/fulltaah/:id', embedProtectionMiddleware, async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+      const video = await videoScraper.scrapeVideo(id);
+      
+      // Check if we have a valid title and URL
+      if (!video.url) {
+        throw new Error('Failed to get video URL');
+      }
+
+      // Increment access count
+      await storage.incrementAccessCount(id);
+      
+      // Return a full HTML page with Plyr.io player
+      return res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${video.title || 'Video Player'}</title>
+          <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+          <style>
+            html, body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              overflow: hidden;
+              background-color: #000;
+            }
+            .plyr {
+              height: 100%;
+            }
+            video {
+              width: 100%;
+              height: 100%;
+            }
+          </style>
+        </head>
+        <body>
+          <video id="player" playsinline controls>
+            <source src="${video.url}" type="video/mp4">
+          </video>
+          
+          <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+          <script>
+            document.addEventListener('DOMContentLoaded', function() {
+              const player = new Plyr('#player', {
+                fullscreen: { enabled: true, fallback: true, iosNative: true },
+                controls: [
+                  'play-large', 'play', 'progress', 'current-time', 'mute', 
+                  'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
+                ],
+              });
+              
+              // Auto-play when loaded
+              player.on('ready', () => {
+                player.play();
+              });
+            });
+          </script>
+        </body>
+        </html>
+      `);
+    } catch (error) {
+      await storage.createLog({
+        level: 'ERROR',
+        source: 'API',
+        message: `Error serving player for video ${id}: ${error instanceof Error ? error.message : String(error)}`
+      });
+      
+      return res.status(500).send(`
+        <html>
+          <head><title>Error</title></head>
+          <body>
+            <h1>Error</h1>
+            <p>${error instanceof Error ? error.message : 'An unknown error occurred'}</p>
+            <a href="/">Go Back</a>
+          </body>
+        </html>
+      `);
+    }
+  });
   
   // API endpoint to get recent videos
   app.get('/api/videos/recent', async (req, res) => {
@@ -236,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/domains/:id', async (req, res) => {
+  app.put('/api/domains/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     
     try {
@@ -267,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete('/api/domains/:id', async (req, res) => {
+  app.delete('/api/domains/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     
     try {
@@ -298,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Logs management
-  app.get('/api/logs', async (req, res) => {
+  app.get('/api/logs', authMiddleware, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
