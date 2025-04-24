@@ -6,22 +6,32 @@ import { telegramBot } from "./telegram";
 import { verifyOrigin, getSystemStats } from "./utils";
 import { z } from "zod";
 import { insertDomainSchema, insertLogSchema } from "@shared/schema";
+import { authMiddleware, loginAdmin } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
   // Middleware to check origin for all API routes
   app.use('/api', async (req, res, next) => {
-    const isAllowed = await verifyOrigin(req);
+    // Skip origin check for specific paths
+    const allowedPaths = ['/api/auth/login', '/api/video', '/api/videos/recent'];
+    const isExemptPath = allowedPaths.some(path => req.path.startsWith(path));
     
-    if (!isAllowed) {
-      return res.status(403).json({ 
-        error: 'Access denied: Origin not whitelisted' 
-      });
+    if (!isExemptPath) {
+      const isAllowed = await verifyOrigin(req);
+      
+      if (!isAllowed) {
+        return res.status(403).json({ 
+          error: 'Access denied: Origin not whitelisted' 
+        });
+      }
     }
     
     next();
   });
+  
+  // Admin authentication routes
+  app.post('/api/auth/login', loginAdmin);
   
   // API endpoint to get a video URL
   app.get('/api/video/:id', async (req, res) => {
@@ -96,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Cache management endpoints
-  app.post('/api/cache/clear', async (req, res) => {
+  app.post('/api/cache/clear', authMiddleware, async (req, res) => {
     try {
       await videoScraper.clearCache();
       await storage.createLog({
@@ -117,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/cache/refresh/:id', async (req, res) => {
+  app.post('/api/cache/refresh/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     
     try {
@@ -150,7 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put('/api/settings', async (req, res) => {
+  app.put('/api/settings', authMiddleware, async (req, res) => {
     try {
       const settings = req.body;
       
@@ -203,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/domains', async (req, res) => {
+  app.post('/api/domains', authMiddleware, async (req, res) => {
     try {
       const validatedDomain = insertDomainSchema.parse(req.body);
       const domain = await storage.createDomain(validatedDomain);
