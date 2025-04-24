@@ -35,9 +35,11 @@ export async function loginAdmin(req: Request, res: Response) {
     if (webAdminPassword) {
       // Direct comparison with plaintext password from environment
       isMatch = password === webAdminPassword;
+      console.log(`Checking password against environment variable (match: ${isMatch})`);
     } else {
       // Fallback to hash comparison
       isMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+      console.log(`Checking password against hash (match: ${isMatch})`);
     }
     
     if (!isMatch) {

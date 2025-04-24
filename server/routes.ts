@@ -475,7 +475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true, 
         data: { 
           active: isActive,
-          botToken: !!process.env.TELEGRAM_BOT_TOKEN
+          botToken: !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.length > 10)
         }
       });
     } catch (error) {
@@ -518,11 +518,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Initialize Telegram bot at startup
-  if (process.env.TELEGRAM_BOT_TOKEN) {
+  // Initialize Telegram bot at startup if token exists
+  if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.length > 10) {
+    console.log('Starting Telegram bot...');
     telegramBot.start().catch(error => {
       console.error('Failed to start Telegram bot:', error);
     });
+  } else {
+    console.log('Telegram bot token not found or invalid. Bot will not start automatically.');
   }
 
   return httpServer;
