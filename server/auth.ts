@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { storage } from './storage';
 
 // Secret for JWT signing
-const JWT_SECRET = process.env.SESSION_SECRET || 'super-secret-development-only-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-development-only-key';
 
 // Use WEB_ADMIN_PASSWORD from environment or fallback to default hash
 // Default hash is for 'admin123'
@@ -30,12 +30,18 @@ export async function loginAdmin(req: Request, res: Response) {
     // Check if environment variable is set
     const webAdminPassword = process.env.WEB_ADMIN_PASSWORD;
     
+    console.log('Debug - WEB_ADMIN_PASSWORD exists:', !!webAdminPassword);
+    if (webAdminPassword) {
+      console.log('Debug - WEB_ADMIN_PASSWORD length:', webAdminPassword.length);
+    }
+    
     let isMatch = false;
     
     if (webAdminPassword) {
       // Direct comparison with plaintext password from environment
       isMatch = password === webAdminPassword;
       console.log(`Checking password against environment variable (match: ${isMatch})`);
+      console.log(`Provided password: ${password}, stored password length: ${webAdminPassword.length}`);
     } else {
       // Fallback to hash comparison
       isMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
