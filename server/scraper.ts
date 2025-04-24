@@ -205,14 +205,25 @@ export class VideoScraper {
         
         logInfo('Scraper', `Fetching from: ${embedUrl}`);
         
-        // Get the embed page
-        const embedResponse = await fetch(embedUrl);
+        // Get the embed page with browser headers to avoid detection
+        const headers = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': 'https://letsembed.cc/',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        };
+        
+        const embedResponse = await fetch(embedUrl, { headers });
         
         if (!embedResponse.ok) {
           throw new Error(`HTTP error! Status: ${embedResponse.status}`);
         }
         
         const embedHtml = await embedResponse.text();
+        
+        logInfo('Scraper', `Successfully fetched HTML content for video ID: ${videoId}`);
         
         // Extract video title from HTML
         let videoTitle = `Video ${videoId}`;
@@ -319,7 +330,50 @@ export class VideoScraper {
           }
         }
         
-        // If URL extraction fails, use fallback sample videos
+        // If URL extraction fails, try to make a direct API request
+        if (!videoUrl) {
+          logInfo('Scraper', `Regular extraction methods failed for ${videoId}, trying direct API request`);
+          
+          try {
+            // Try to make a direct API request to the video info endpoint
+            const apiHeaders = {
+              ...headers,
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-Requested-With': 'XMLHttpRequest',
+              'Origin': 'https://dl.letsembed.cc'
+            };
+            
+            // Make a direct API request with the video ID
+            const apiResponse = await fetch('https://dl.letsembed.cc/api/source/' + videoId, {
+              method: 'POST',
+              headers: apiHeaders,
+              body: ''
+            });
+            
+            if (apiResponse.ok) {
+              const apiData = await apiResponse.json();
+              
+              if (apiData && apiData.success && apiData.data && apiData.data.length > 0) {
+                // Find the highest quality URL
+                let bestQuality = apiData.data[0];
+                for (const file of apiData.data) {
+                  if (file.label && file.label.includes('HD') && file.file) {
+                    bestQuality = file;
+                  }
+                }
+                
+                if (bestQuality && bestQuality.file) {
+                  videoUrl = bestQuality.file;
+                  logInfo('Scraper', `Found video URL from API: ${videoUrl}`);
+                }
+              }
+            }
+          } catch (apiError) {
+            logWarn('Scraper', `API request failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`);
+          }
+        }
+        
+        // If all extraction methods fail, use fallback sample videos
         if (!videoUrl) {
           logWarn('Scraper', `Could not extract video URL, using fallback`);
           
@@ -451,8 +505,58 @@ export class VideoScraper {
     const url = `https://dl.letsembed.cc/?id=${videoId}`;
     
     try {
-      const response = await fetch(url);
-      const html = await response.text();
+      // Use browser-like headers to avoid detection
+      const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://letsembed.cc/',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      };
+      
+      // First try: Normal GET request
+      let response = await fetch(url, { headers });
+      let html = await response.text();
+      
+      logInfo('Scraper', `GET request for ${videoId} completed`);
+      
+      // If GET doesn't find what we need, try POST request to simulate button click
+      if (!html.includes('videoUrl') && !html.includes('macdn.hakunaymatata.com')) {
+        logInfo('Scraper', `Trying POST request to simulate button click for ${videoId}`);
+        
+        // Append headers for POST
+        const postHeaders = {
+          ...headers,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Origin': 'https://dl.letsembed.cc'
+        };
+        
+        // Simulate a POST request with the video ID
+        const postResponse = await fetch('https://dl.letsembed.cc/get_video_info.php', {
+          method: 'POST',
+          headers: postHeaders,
+          body: `id=${videoId}`
+        });
+        
+        if (postResponse.ok) {
+          try {
+            // Try to get JSON response
+            const jsonData = await postResponse.json();
+            if (jsonData && jsonData.videoUrl) {
+              logInfo('Scraper', `Found videoUrl in POST response: ${jsonData.videoUrl}`);
+              return {
+                videoId,
+                title: jsonData.title || `Video ${videoId}`,
+                url: jsonData.videoUrl,
+                quality: jsonData.quality || 'HD'
+              };
+            }
+          } catch (jsonError) {
+            logWarn('Scraper', `POST response wasn't JSON: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`);
+          }
+        }
+      }
       
       let videoTitle = `Video ${videoId}`;
       const titleMatch = html.match(/<title>(.*?)<\/title>/i);
