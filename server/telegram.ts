@@ -459,7 +459,8 @@ export class TelegramBot {
       console.error(`Failed to save data to Telegram channel: ${error instanceof Error ? error.message : String(error)}`);
       
       // Disable channel storage after consistent failures
-      if (error.message && (error.message.includes('chat not found') || error.message.includes('Bad Request'))) {
+      if (error instanceof Error && error.message && 
+          (error.message.includes('chat not found') || error.message.includes('Bad Request'))) {
         console.log('Disabling Telegram channel storage due to persistent errors');
         this.disableChannelStorage();
       }
@@ -508,7 +509,7 @@ export class TelegramBot {
    * Check if channel storage is enabled
    */
   isChannelStorageEnabled(): boolean {
-    return this.channelStorage.enabled && !!this.channelStorage.channelId;
+    return !!this.channelStorage.enabled && !!this.channelStorage.channelId;
   }
 }
 

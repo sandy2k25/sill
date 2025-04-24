@@ -522,11 +522,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.length > 10) {
     console.log('Starting Telegram bot...');
     telegramBot.start().then(() => {
-      // If channel ID is provided, enable channel storage
+      // Disable channel storage for now to prevent errors
+      telegramBot.disableChannelStorage();
+      console.log('Telegram channel storage is disabled to prevent errors');
+      
+      /* Temporarily disabled to prevent errors
       if (process.env.TELEGRAM_CHANNEL_ID) {
         console.log('Enabling Telegram channel database with ID:', process.env.TELEGRAM_CHANNEL_ID);
         telegramBot.enableChannelStorage(process.env.TELEGRAM_CHANNEL_ID);
       }
+      */
     }).catch(error => {
       console.error('Failed to start Telegram bot:', error);
     });
