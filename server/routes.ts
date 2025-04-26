@@ -13,25 +13,6 @@ import path from "path";
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
-  // Add iframetester.com to the whitelist automatically for testing
-  // This is a development-only feature
-  try {
-    const domain = await storage.createDomain({
-      domain: "iframetester.com",
-      active: true
-    });
-    
-    console.log("Added iframetester.com to domain whitelist for testing");
-    
-    // Also add www.iframetester.com
-    await storage.createDomain({
-      domain: "www.iframetester.com",
-      active: true
-    });
-  } catch (error) {
-    console.error("Error adding iframetester.com to whitelist:", error);
-  }
-  
   // Stream endpoint for securely serving video content
   app.get('/stream/:token', async (req, res) => {
     const token = req.params.token;

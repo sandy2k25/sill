@@ -152,21 +152,9 @@ export async function verifyOrigin(req: Request): Promise<boolean> {
  * Middleware to enforce Content-Security-Policy and other headers for embed protection
  */
 export function embedProtectionMiddleware(req: Request, res: Response, next: NextFunction) {
-  // First, check if the request comes from iframetester.com
+  // Get origin and referer for checking
   const referer = req.get('referer');
   const origin = req.get('origin');
-
-  // Special case for iframetester.com - always allow iframe embedding
-  if (referer && referer.includes('iframetester.com') || 
-      origin && origin.includes('iframetester.com')) {
-    console.log("Allowing embedding from iframetester.com");
-    // Set headers to specifically allow iframetester.com
-    res.setHeader('X-Frame-Options', 'ALLOW-FROM https://iframetester.com');
-    res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://iframetester.com https://*.iframetester.com");
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    next();
-    return;
-  }
   
   // Set strict security headers to prevent embedding on non-whitelisted domains
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
@@ -271,9 +259,13 @@ export function embedProtectionMiddleware(req: Request, res: Response, next: Nex
               <script>
                 // If we're in an iframe and parent domain is not whitelisted
                 if (window.self !== window.top) {
-                  // Break out of the iframe or show error message
-                  document.body.innerHTML = '<div style="color: red; padding: 20px;">Embedding is disabled for this domain.</div>';
-                  // Or redirect: window.top.location.href = window.location.href;
+                  // Show a helpful error message
+                  document.body.innerHTML = '<div style="color: white; padding: 20px; background: #222; font-family: Arial, sans-serif;">' +
+                    '<h2 style="color: #e5308c; margin-bottom: 15px;">Domain Not Authorized</h2>' +
+                    '<p>This domain is not authorized to embed WovIeX player.</p>' +
+                    '<p>Please add this domain to the whitelist in the WovIeX admin panel before embedding.</p>' +
+                    '</div>';
+                  // Avoid redirecting to maintain context
                 }
               </script>
             `;
