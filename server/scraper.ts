@@ -702,6 +702,15 @@ export class WovIeX {
           videoUrl = '';
         }
         
+        // Make sure to decode HTML entities in the main videoUrl before inserting into database
+        if (videoUrl) {
+          videoUrl = videoUrl.replace(/&amp;/g, '&')
+                             .replace(/&lt;/g, '<')
+                             .replace(/&gt;/g, '>')
+                             .replace(/&quot;/g, '"')
+                             .replace(/&#039;/g, "'");
+        }
+        
         const videoInfo: InsertVideo = {
           videoId,
           title: videoTitle,
@@ -747,7 +756,16 @@ export class WovIeX {
         const videoUrl = '';
         const videoTitle = `Video ${videoId}`;
         
-        const fallbackInfo: InsertVideo = {
+        // Make sure to decode HTML entities in the URL
+    if (videoUrl) {
+      videoUrl = videoUrl.replace(/&amp;/g, '&')
+                         .replace(/&lt;/g, '<')
+                         .replace(/&gt;/g, '>')
+                         .replace(/&quot;/g, '"')
+                         .replace(/&#039;/g, "'");
+    }
+    
+    const fallbackInfo: InsertVideo = {
           videoId,
           title: videoTitle,
           url: videoUrl,
