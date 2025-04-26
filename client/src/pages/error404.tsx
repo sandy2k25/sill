@@ -1,63 +1,87 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'wouter';
 
 const Error404: React.FC = () => {
-  const [, setLocation] = useLocation();
   const [anim, setAnim] = useState<boolean>(false);
-  const [dots, setDots] = useState<string>("");
+  const [glitchClass, setGlitchClass] = useState<string>("");
+  const [scanline, setScanline] = useState<boolean>(false);
 
-  // Animation for dots
+  // Trigger animations on mount
   useEffect(() => {
-    const dotInterval = setInterval(() => {
-      setDots(prev => prev.length < 3 ? prev + "." : "");
-    }, 500);
-
-    // Trigger fade-in animation
+    // Trigger main fade-in animation
     setTimeout(() => setAnim(true), 100);
+    
+    // Scanline effect
+    setTimeout(() => setScanline(true), 800);
 
-    return () => clearInterval(dotInterval);
+    // Glitch effect intervals - more random and professional
+    let glitchTimer: NodeJS.Timeout;
+    
+    const triggerGlitch = () => {
+      setGlitchClass("glitch");
+      setTimeout(() => setGlitchClass(""), Math.random() * 200 + 50);
+      
+      // Schedule next glitch
+      glitchTimer = setTimeout(triggerGlitch, Math.random() * 5000 + 2000);
+    };
+    
+    // Start the first glitch after 1.5s
+    const initialTimer = setTimeout(triggerGlitch, 1500);
+    
+    return () => {
+      clearTimeout(initialTimer);
+      clearTimeout(glitchTimer);
+    };
   }, []);
 
-  // Redirect to auth page on button click
-  const handleAdminRedirect = () => {
-    setLocation('/auth');
-  };
-
   return (
-    <div className="min-h-screen w-full bg-white flex flex-col items-center justify-center">
-      <div className={`transform transition-all duration-1000 ${anim ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-        <h1 className="text-9xl font-bold text-gray-900 tracking-wider">
-          <span className="inline-block animate-pulse text-red-600">4</span>
-          <span className="inline-block animate-bounce delay-75 text-gray-800">0</span>
-          <span className="inline-block animate-pulse delay-150 text-red-600">4</span>
-        </h1>
+    <div className="min-h-screen w-full bg-gray-900 flex flex-col items-center justify-center overflow-hidden">
+      {/* Scanlines overlay */}
+      {scanline && (
+        <div className="fixed inset-0 pointer-events-none z-50 scanlines opacity-20"></div>
+      )}
+      
+      <div className={`text-center transform transition-all duration-1000 ${anim ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+        <div className={`relative ${glitchClass}`}>
+          <h1 className="text-9xl font-bold text-white tracking-wider relative z-10 animate-text-flicker">
+            <span className="inline-block text-red-600">4</span>
+            <span className="inline-block text-white">0</span>
+            <span className="inline-block text-red-600">4</span>
+          </h1>
+          
+          {/* Glitch layers */}
+          <h1 className="text-9xl font-bold text-blue-500 tracking-wider absolute top-0 left-0 z-0 glitch-layer-1">
+            <span>4</span><span>0</span><span>4</span>
+          </h1>
+          <h1 className="text-9xl font-bold text-red-500 tracking-wider absolute top-0 left-0 z-0 glitch-layer-2">
+            <span>4</span><span>0</span><span>4</span>
+          </h1>
+        </div>
         
-        <div className="text-center mt-8">
-          <p className="text-2xl text-gray-700 mb-8 animate-fade-in">
-            Page not found{dots}
+        <div className="mt-12 relative z-10">
+          <p className="text-xl text-gray-300 mb-6 animate-fade-in tracking-widest uppercase font-light">
+            ERROR
           </p>
           
-          <div className="text-gray-500 mb-12 max-w-md mx-auto">
-            <p className="animate-fade-in delay-300">
-              This page doesn't exist or you don't have permission to access it.
+          <div className="max-w-md mx-auto border-t border-gray-700 pt-6">
+            <p className="animate-fade-in text-gray-400 tracking-wide uppercase text-xs">
+              Resource not found
             </p>
           </div>
-          
-          <button 
-            onClick={handleAdminRedirect}
-            className="px-6 py-3 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
-          >
-            Admin Login
-          </button>
         </div>
       </div>
 
-      {/* Animated shapes */}
-      <div className="absolute inset-0 overflow-hidden -z-10">
-        <div className="absolute top-1/4 left-1/4 h-32 w-32 rounded-full bg-red-100 animate-float opacity-50"></div>
-        <div className="absolute top-2/3 right-1/4 h-48 w-48 rounded-full bg-gray-100 animate-float-delay opacity-60"></div>
-        <div className="absolute bottom-1/4 right-1/3 h-24 w-24 rounded-full bg-red-50 animate-float-slow opacity-40"></div>
+      {/* Animated digital grid background */}
+      <div className="absolute inset-0 overflow-hidden -z-10 grid-bg opacity-30"></div>
+      
+      {/* Light beams */}
+      <div className="absolute h-screen w-screen overflow-hidden -z-5">
+        <div className="light-beam light-beam-1"></div>
+        <div className="light-beam light-beam-2"></div>
+        <div className="light-beam light-beam-3"></div>
       </div>
+      
+      {/* Dark vignette effect */}
+      <div className="absolute inset-0 bg-radial-gradient pointer-events-none"></div>
     </div>
   );
 };
