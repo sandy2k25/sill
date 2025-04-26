@@ -33,15 +33,22 @@ export async function loginAdmin(req: Request, res: Response) {
     console.log('Debug - WEB_ADMIN_PASSWORD exists:', !!webAdminPassword);
     if (webAdminPassword) {
       console.log('Debug - WEB_ADMIN_PASSWORD length:', webAdminPassword.length);
+      // Debug: print the actual char codes to diagnose potential whitespace issues
+      console.log('Debug - WEB_ADMIN_PASSWORD char codes:', [...webAdminPassword].map(c => c.charCodeAt(0)));
+      console.log('Debug - Input password char codes:', [...password].map(c => c.charCodeAt(0)));
     }
     
     let isMatch = false;
     
     if (webAdminPassword) {
+      // Trim any whitespace from both passwords before comparison
+      const trimmedEnvPassword = webAdminPassword.trim();
+      const trimmedInputPassword = password.trim();
+      
       // Direct comparison with plaintext password from environment
-      isMatch = password === webAdminPassword;
+      isMatch = trimmedInputPassword === trimmedEnvPassword;
       console.log(`Checking password against environment variable (match: ${isMatch})`);
-      console.log(`Provided password: ${password}, stored password length: ${webAdminPassword.length}`);
+      console.log(`Provided password: "${password}", stored password: "${webAdminPassword}"`);
     } else {
       // Fallback to hash comparison
       isMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
