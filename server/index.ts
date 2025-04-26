@@ -5,6 +5,9 @@ import { storage } from "./storage";
 import { videoScraper } from "./scraper";
 import { telegramBot } from "./telegram";
 import { initLogger } from "./logger";
+import { generatePasswordHash } from "./auth";
+import { db } from "./db";
+import { users, domains } from "@shared/schema";
 
 // Set Replit environment flag for use in conditional code paths
 process.env.REPLIT_ENVIRONMENT = "true";
@@ -53,7 +56,62 @@ app.use((req, res, next) => {
   next();
 });
 
+// Initialize the database with default values
+async function initializeDatabase() {
+  try {
+    console.log('Initializing database with default values...');
+    
+    // Check if we have any users
+    const existingUsers = await db.select().from(users);
+    
+    // If no users exist, create a default admin
+    if (existingUsers.length === 0) {
+      console.log('No users found, creating default admin user...');
+      const adminPassword = process.env.WEB_ADMIN_PASSWORD || 'admin';
+      const hashedPassword = await generatePasswordHash(adminPassword);
+      
+      await db.insert(users).values({
+        username: 'admin',
+        password: hashedPassword
+      });
+      
+      console.log('Default admin user created');
+    }
+    
+    // Check if we have any domains
+    const existingDomains = await db.select().from(domains);
+    
+    // If no domains exist, add default allowed domains
+    if (existingDomains.length === 0) {
+      console.log('No domains found, adding default whitelisted domains...');
+      
+      const defaultDomains = [
+        { domain: 'localhost', active: true },
+        { domain: 'iframe.example.com', active: true },
+        { domain: 'example.com', active: true }
+      ];
+      
+      for (const domain of defaultDomains) {
+        await db.insert(domains).values({
+          domain: domain.domain,
+          active: domain.active,
+          addedAt: new Date()
+        });
+      }
+      
+      console.log('Default domains added');
+    }
+    
+    console.log('Database initialization complete');
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+  }
+}
+
 (async () => {
+  // Initialize the database before starting the server
+  await initializeDatabase();
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
