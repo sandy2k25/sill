@@ -1,6 +1,6 @@
 import NodeCache from 'node-cache';
 import { logInfo, logError, logWarn, logDebug } from './logger';
-import { InsertVideo } from '@shared/schema';
+import { InsertVideo, qualityOptionsToStringArray } from '@shared/schema';
 
 // Cache for storing scraped URLs
 const videoCache = new NodeCache();
@@ -294,6 +294,14 @@ export class WovIeX {
                 return bQuality - aQuality;
               });
               
+              // Store all quality options for later use
+              this._lastQualityOptions = files.map((file: any) => ({
+                label: file.label || 'HD',
+                url: file.file
+              }));
+              
+              logInfo('Scraper', `Extracted ${this._lastQualityOptions.length} quality options from API`);
+              
               if (files[0] && files[0].file) {
                 videoUrl = files[0].file;
                 logInfo('Scraper', `Found video URL from API (highest quality): ${videoUrl}`);
@@ -443,7 +451,9 @@ export class WovIeX {
           title: videoTitle,
           url: videoUrl,
           quality: 'HD',
-          qualityOptions: this._lastQualityOptions.length > 0 ? this._lastQualityOptions : undefined
+          qualityOptions: this._lastQualityOptions.length > 0 ? 
+            qualityOptionsToStringArray(this._lastQualityOptions) :
+            undefined
         };
         
         // Store in database - always store the base video with the current URL
@@ -1016,7 +1026,10 @@ export class WovIeX {
         videoId,
         title: title || 'Unknown Video',
         url: videoUrl,
-        quality: quality || 'HD'
+        quality: quality || 'HD',
+        qualityOptions: this._lastQualityOptions.length > 0 ? 
+          qualityOptionsToStringArray(this._lastQualityOptions) : 
+          undefined
       };
     } catch (error) {
       logError('Scraper', `Failed to extract video info: ${error instanceof Error ? error.message : String(error)}`);

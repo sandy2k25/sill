@@ -117,6 +117,29 @@
     .quality-selector select:focus {
       border-color: rgba(229, 48, 140, 1);
     }
+    .subtitle-selector {
+      position: absolute;
+      top: 80px;
+      left: 10px;
+      z-index: 99;
+      display: none;
+    }
+    .player-container:hover .subtitle-selector {
+      display: block;
+    }
+    .subtitle-selector select {
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: 1px solid rgba(229, 48, 140, 0.8);
+      border-radius: 4px;
+      padding: 5px;
+      font-size: 12px;
+      font-family: Arial, sans-serif;
+      outline: none;
+    }
+    .subtitle-selector select:focus {
+      border-color: rgba(229, 48, 140, 1);
+    }
     .shortcuts-info {
       position: absolute;
       bottom: 55px;
@@ -159,6 +182,12 @@
       <select id="qualitySelect">
         <option value="${video.url}" selected>${video.quality || 'HD'}</option>
         ${video.qualityOptions ? video.qualityOptions.map(opt => `<option value="${opt.url}">${opt.label}</option>`).join('') : ''}
+      </select>
+    </div>
+    <div class="subtitle-selector">
+      <select id="subtitleSelect">
+        <option value="">No Subtitle</option>
+        ${video.subtitleOptions ? video.subtitleOptions.map(opt => `<option value="${opt.url}" data-lang="${opt.language}">${opt.label}</option>`).join('') : ''}
       </select>
     </div>
     <div class="video-title">${video.title || 'Video Player'}</div>
@@ -253,6 +282,53 @@
               player.play();
             }
           }, { once: true });
+        });
+      }
+      
+      // Handle subtitle selection
+      const subtitleSelect = document.getElementById('subtitleSelect');
+      
+      if (subtitleSelect) {
+        subtitleSelect.addEventListener('change', function() {
+          // Get the current subtitle track
+          const tracks = player.media.textTracks;
+          const selectedOption = subtitleSelect.options[subtitleSelect.selectedIndex];
+          const subtitleUrl = selectedOption.value;
+          const subtitleLabel = selectedOption.text;
+          
+          // Remove any existing subtitle tracks
+          if (player.media.querySelectorAll('track').length > 0) {
+            Array.from(player.media.querySelectorAll('track')).forEach(track => {
+              track.remove();
+            });
+          }
+          
+          // If a subtitle is selected, add it to the player
+          if (subtitleUrl) {
+            const track = document.createElement('track');
+            track.kind = 'subtitles';
+            track.label = subtitleLabel;
+            track.srclang = selectedOption.dataset.lang || 'en';
+            track.src = subtitleUrl;
+            track.default = true;
+            player.media.appendChild(track);
+            
+            // Show message
+            showMessage(`Subtitle: ${subtitleLabel}`, 2000);
+            
+            // Enable the subtitle
+            setTimeout(() => {
+              const textTracks = player.media.textTracks;
+              for (let i = 0; i < textTracks.length; i++) {
+                if (textTracks[i].mode === 'showing' || textTracks[i].mode === 'hidden') {
+                  textTracks[i].mode = 'showing';
+                }
+              }
+            }, 500);
+          } else {
+            // No subtitle selected
+            showMessage('Subtitles disabled', 2000);
+          }
         });
       }
       

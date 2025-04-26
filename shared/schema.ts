@@ -82,6 +82,13 @@ export interface QualityOption {
   url: string;      // Direct URL for this quality
 }
 
+// Define a type for subtitle options
+export interface SubtitleOption {
+  label: string;    // Label like "English", "Spanish", etc.
+  url: string;      // Direct URL for the subtitle file
+  language: string; // Language code for the subtitle (e.g., "en", "es")
+}
+
 // Convert QualityOption array to string array for storage
 export function qualityOptionsToStringArray(options: QualityOption[] | undefined): string[] | undefined {
   if (!options || options.length === 0) return undefined;
@@ -92,6 +99,18 @@ export function qualityOptionsToStringArray(options: QualityOption[] | undefined
 export function stringArrayToQualityOptions(array: string[] | null | undefined): QualityOption[] | undefined {
   if (!array || array.length === 0) return undefined;
   return array.map(str => JSON.parse(str) as QualityOption);
+}
+
+// Convert SubtitleOption array to string array for storage
+export function subtitleOptionsToStringArray(options: SubtitleOption[] | undefined): string[] | undefined {
+  if (!options || options.length === 0) return undefined;
+  return options.map(opt => JSON.stringify(opt));
+}
+
+// Convert string array back to SubtitleOption array
+export function stringArrayToSubtitleOptions(array: string[] | null | undefined): SubtitleOption[] | undefined {
+  if (!array || array.length === 0) return undefined;
+  return array.map(str => JSON.parse(str) as SubtitleOption);
 }
 
 // Ensure all schema types are properly defined
