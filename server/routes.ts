@@ -250,8 +250,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Using our imported fs and path modules
       
       try {
-        // Read the player template file
-        const templatePath = path.join(process.cwd(), 'player_template.html');
+        // Read the simple player template file
+        const templatePath = path.join(process.cwd(), 'player_template_simple.html');
         let playerTemplate = fs.readFileSync(templatePath, 'utf8');
         
         // Encrypt the video URL for secure playback
@@ -460,8 +460,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Using our imported fs and path modules
       
       try {
-        // Read the player template file
-        const templatePath = path.join(process.cwd(), 'player_template.html');
+        // Read the simple player template file
+        const templatePath = path.join(process.cwd(), 'player_template_simple.html');
         let playerTemplate = fs.readFileSync(templatePath, 'utf8');
         
         // Add season and episode to the title for this route

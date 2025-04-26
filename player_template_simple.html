@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${video.title || 'Video Player'}</title>
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000;
+    }
+    .plyr {
+      height: 100%;
+      --plyr-color-main: #e5308c; /* Custom brand color */
+    }
+    video {
+      width: 100%;
+      height: 100%;
+    }
+    .wovie-logo {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: white;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      font-size: 16px;
+      z-index: 99;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
+      pointer-events: none;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    }
+    .video-title {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      font-size: 16px;
+      z-index: 99;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
+      pointer-events: none;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 60%;
+      text-align: center;
+    }
+    .player-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      z-index: 100;
+    }
+    .quality-selector, .subtitle-selector {
+      margin: 0 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: 1px solid #666;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      cursor: pointer;
+      outline: none;
+    }
+    .quality-selector:focus, .subtitle-selector:focus {
+      border-color: #e5308c;
+    }
+    .player-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      z-index: 101;
+      display: none;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wovie-logo">WovIeX</div>
+  <div class="video-title">${video.title || 'Video Player'}</div>
+  <video id="player" playsinline controls>
+    <source src="${video.url}" type="video/mp4">
+  </video>
+  <div class="player-controls">
+    <select id="qualitySelect" class="quality-selector">
+      <option value="">Quality: Auto</option>
+    </select>
+    <select id="subtitleSelect" class="subtitle-selector">
+      <option value="">Subtitles: Off</option>
+    </select>
+  </div>
+  <div id="message" class="player-message"></div>
+  
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize variables
+      const playerElement = document.getElementById('player');
+      const qualitySelect = document.getElementById('qualitySelect');
+      const subtitleSelect = document.getElementById('subtitleSelect');
+      const messageElement = document.getElementById('message');
+      
+      // Load saved quality and subtitle preferences
+      const savedQuality = localStorage.getItem('wovie_preferred_quality');
+      const savedSubtitle = localStorage.getItem('wovie_preferred_subtitle');
+      
+      // Show message function
+      function showMessage(text, duration = 3000) {
+        messageElement.textContent = text;
+        messageElement.style.display = 'block';
+        
+        setTimeout(() => {
+          messageElement.style.display = 'none';
+        }, duration);
+      }
+      
+      // Parse quality options from the server
+      let qualityOptions = ${JSON.stringify(video.qualityOptions || [])};
+      
+      // Convert to Plyr quality format and find 360p
+      let plyrQualityOptions = [];
+      let default360pIndex = 0;
+      
+      if (qualityOptions.length > 0) {
+        if (typeof qualityOptions[0] === 'string') {
+          // Convert from string
+          qualityOptions = qualityOptions.map(optStr => {
+            try {
+              return JSON.parse(optStr);
+            } catch (e) {
+              console.error('Failed to parse quality option:', e);
+              return null;
+            }
+          }).filter(opt => opt !== null);
+        }
+        
+        // Create Plyr quality options
+        plyrQualityOptions = qualityOptions.map((opt, index) => {
+          // Check if this is 360p or contains 360 in the label
+          if (opt.label.includes('360')) {
+            default360pIndex = index;
+          }
+          return {
+            src: opt.url,
+            type: 'video/mp4',
+            size: parseInt(opt.label) || index  // Extract number if possible
+          };
+        });
+        
+        // If no 360p found, set the second option (usually SD) as default
+        if (default360pIndex === 0 && plyrQualityOptions.length > 1) {
+          default360pIndex = 1;  // Default to second option if 360p not found
+        }
+      }
+      
+      // Setup Plyr with quality options in settings
+      const player = new Plyr('#player', {
+        fullscreen: { enabled: true, fallback: true, iosNative: true },
+        controls: [
+          'play-large', 'rewind', 'play', 'fast-forward', 'progress', 
+          'current-time', 'duration', 'mute', 'volume', 'captions', 
+          'settings', 'pip', 'airplay', 'fullscreen'
+        ],
+        settings: ['captions', 'quality', 'speed', 'loop'],
+        quality: {
+          default: default360pIndex,
+          options: plyrQualityOptions.map((_, index) => index),
+          forced: true,
+          onChange: (quality) => {
+            // Update source based on quality selection
+            const newSource = plyrQualityOptions[quality].src;
+            const currentTime = player.currentTime;
+            const isPaused = player.paused;
+            
+            // Update video source
+            player.source = {
+              type: 'video',
+              sources: [plyrQualityOptions[quality]]
+            };
+            
+            // After source loads, restore time and play state
+            player.on('loadedmetadata', function() {
+              player.currentTime = currentTime;
+              if (!isPaused) {
+                player.play().catch(e => console.error('Could not play after quality change:', e));
+              }
+            }, { once: true });
+          }
+        },
+        speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+        keyboard: { focused: true, global: true },
+        tooltips: { controls: true, seek: true },
+        captions: { active: true, language: 'auto', update: true }
+      });
+      
+      // Parse subtitle options from the server
+      let subtitleOptions = ${JSON.stringify(video.subtitleOptions || [])};
+      
+      // Hide the quality selector since we're using Plyr's built-in quality selection
+      qualitySelect.style.display = 'none';
+      
+      // Process subtitle options (they could be strings or objects)
+      if (subtitleOptions.length > 0) {
+        if (typeof subtitleOptions[0] === 'string') {
+          // Convert from string
+          subtitleOptions = subtitleOptions.map(optStr => {
+            try {
+              return JSON.parse(optStr);
+            } catch (e) {
+              console.error('Failed to parse subtitle option:', e);
+              return null;
+            }
+          }).filter(opt => opt !== null);
+        }
+        
+        // Populate subtitle options dropdown
+        subtitleOptions.forEach(opt => {
+          const option = document.createElement('option');
+          option.value = opt.url;
+          option.textContent = opt.label;
+          option.dataset.lang = opt.language || 'en';
+          subtitleSelect.appendChild(option);
+        });
+        
+        // Set initial selection based on saved preference
+        if (savedSubtitle) {
+          for (let i = 0; i < subtitleSelect.options.length; i++) {
+            if (subtitleSelect.options[i].value === savedSubtitle) {
+              subtitleSelect.selectedIndex = i;
+              break;
+            }
+          }
+        }
+      }
+      
+      // Handle quality selection
+      qualitySelect.addEventListener('change', function() {
+        const currentTime = player.currentTime;
+        const isPaused = player.paused;
+        const selectedOption = qualitySelect.options[qualitySelect.selectedIndex];
+        const selectedUrl = qualitySelect.value;
+        
+        if (selectedUrl) {
+          // Save preference
+          localStorage.setItem('wovie_preferred_quality', selectedUrl);
+          
+          // Update player source
+          player.source = {
+            type: 'video',
+            sources: [{
+              src: selectedUrl,
+              type: 'video/mp4'
+            }]
+          };
+          
+          // Show message
+          showMessage(`Switching to ${selectedOption.textContent}`);
+          
+          // After source loads, restore time and play state
+          player.on('loadedmetadata', function() {
+            player.currentTime = currentTime;
+            if (!isPaused) {
+              player.play();
+            }
+          }, { once: true });
+        }
+      });
+      
+      // Handle subtitle selection
+      subtitleSelect.addEventListener('change', function() {
+        const selectedOption = subtitleSelect.options[subtitleSelect.selectedIndex];
+        const subtitleUrl = subtitleSelect.value;
+        
+        // Save preference
+        localStorage.setItem('wovie_preferred_subtitle', subtitleUrl);
+        
+        // Remove any existing subtitle tracks
+        if (player.media.querySelectorAll('track').length > 0) {
+          Array.from(player.media.querySelectorAll('track')).forEach(track => {
+            track.remove();
+          });
+        }
+        
+        // If a subtitle is selected, add it to the player
+        if (subtitleUrl) {
+          const track = document.createElement('track');
+          track.kind = 'subtitles';
+          track.label = selectedOption.textContent;
+          track.srclang = selectedOption.dataset.lang || 'en';
+          track.src = subtitleUrl;
+          track.default = true;
+          player.media.appendChild(track);
+          
+          // Show message
+          showMessage(`Subtitle: ${selectedOption.textContent}`);
+          
+          // Enable the subtitle
+          setTimeout(() => {
+            const textTracks = player.media.textTracks;
+            for (let i = 0; i < textTracks.length; i++) {
+              textTracks[i].mode = 'showing';
+            }
+          }, 500);
+        } else {
+          // No subtitle selected
+          showMessage('Subtitles disabled');
+        }
+      });
+      
+      // Auto-play when loaded
+      player.on('ready', () => {
+        player.play().catch(error => {
+          console.log('Auto-play was prevented:', error);
+          showMessage('Click to play', 5000);
+        });
+      });
+      
+      // Apply saved subtitle on start if available
+      if (savedSubtitle) {
+        setTimeout(() => {
+          subtitleSelect.dispatchEvent(new Event('change'));
+        }, 1000);
+      }
+    });
+  </script>
+</body>
+</html>
