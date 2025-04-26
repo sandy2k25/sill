@@ -445,27 +445,15 @@ export class TelegramBot {
                 return;
               }
               
-              // If we reach here, we can successfully message the channel
-              this.enableChannelStorage(channelId);
+              // We can successfully message the channel, now enable storage
+              console.log('Calling enableChannelStorage with channel ID:', channelId);
+              const success = await this.enableChannelStorage(channelId);
               
-              // Verify it was enabled
-              if (!this.isChannelStorageEnabled()) {
-                await ctx.reply('❌ Failed to enable channel storage due to an internal error');
-                return;
+              if (success) {
+                await ctx.reply(`✅ Channel storage successfully enabled with ID: ${channelId}`);
+              } else {
+                await ctx.reply('❌ Failed to enable channel storage. Please check server logs for details.');
               }
-              
-              // Send a success message to the channel
-              if (!this.bot) {
-                throw new Error('Bot instance not available');
-              }
-              
-              await this.bot.telegram.sendMessage(
-                channelId,
-                '✅ CHANNEL STORAGE ENABLED: This channel will now be used for database storage.',
-                { disable_notification: true }
-              );
-              
-              await ctx.reply(`✅ Channel storage successfully enabled with ID: ${channelId}`);
             } catch (error) {
               const err = error as Error;
               console.error('Error enabling channel storage via bot command:', err);
@@ -863,40 +851,97 @@ export class TelegramBot {
   
   /**
    * Enable Telegram channel as database storage
+   * @param channelId - The ID of the Telegram channel to use for storage
+   * @returns Promise<boolean> - True if channel storage was successfully enabled
    */
-  enableChannelStorage(channelId?: string): void {
+  async enableChannelStorage(channelId?: string): Promise<boolean> {
     console.log('Enabling channel storage with ID:', channelId || 'none provided');
-
-    // Validate the channel ID format if one is provided
-    if (channelId) {
-      // Channel IDs should start with a negative sign and contain numbers
-      if (!channelId.startsWith('-') || !/^-\d+$/.test(channelId)) {
-        console.error(`Invalid channel ID format: ${channelId}. Channel IDs should start with '-' followed by numbers.`);
-        return;
+    console.log('Current storage state:', JSON.stringify(this.channelStorage));
+    console.log('Bot instance available:', !!this.bot);
+    console.log('Bot running:', this.isRunning);
+    
+    try {
+      // Validate the channel ID format if one is provided
+      if (channelId) {
+        console.log('Processing provided channel ID:', channelId);
+        // Channel IDs should start with a negative sign and contain numbers
+        if (!channelId.startsWith('-') || !/^-\d+$/.test(channelId)) {
+          console.error(`Invalid channel ID format: ${channelId}. Channel IDs should start with '-' followed by numbers.`);
+          return false;
+        }
+        this.channelStorage.channelId = channelId;
+        console.log('Channel ID set to:', this.channelStorage.channelId);
+      } else if (process.env.TELEGRAM_CHANNEL_ID) {
+        // Try to use the environment variable if available
+        const envChannelId = process.env.TELEGRAM_CHANNEL_ID;
+        console.log('Using channel ID from environment variable:', envChannelId);
+        if (!envChannelId.startsWith('-') || !/^-\d+$/.test(envChannelId)) {
+          console.error(`Invalid channel ID format in environment variable: ${envChannelId}`);
+          return false;
+        }
+        this.channelStorage.channelId = envChannelId;
+        console.log('Channel ID set from environment to:', this.channelStorage.channelId);
       }
-      this.channelStorage.channelId = channelId;
-    }
-    
-    // Check if we have a valid channel ID
-    if (!this.channelStorage.channelId) {
-      console.error('Cannot enable channel storage: No channel ID provided and none stored');
-      return;
-    }
-    
-    this.channelStorage.enabled = true;
-    
-    // Verify it was properly enabled
-    const isEnabled = this.isChannelStorageEnabled();
-    console.log('Channel storage status:', 
-      isEnabled ? 'Enabled' : 'Not enabled',
-      'with channel ID:', this.channelStorage.channelId || 'none');
-    
-    // If enabled, try to send a test message
-    if (isEnabled && this.bot && this.isRunning) {
-      console.log('Sending test message to channel to verify access...');
-      this.bot.telegram.sendMessage(this.channelStorage.channelId, 'CHANNEL_STORAGE_TEST: Channel storage enabled successfully')
-        .then(() => {
-          console.log('Test message sent successfully to channel');
+      
+      // Check if we have a valid channel ID after all attempts
+      if (!this.channelStorage.channelId) {
+        console.error('Cannot enable channel storage: No channel ID provided and none stored');
+        return false;
+      }
+      
+      // Check if bot is available
+      if (!this.bot) {
+        console.error('Cannot enable channel storage: Bot instance not available');
+        return false;
+      }
+      
+      // Check if bot is running
+      if (!this.isRunning) {
+        console.error('Cannot enable channel storage: Bot is not running');
+        return false;
+      }
+      
+      // Try to verify channel access with a test message before enabling
+      try {
+        console.log('Sending test message to verify channel access:', this.channelStorage.channelId);
+        await this.bot.telegram.sendMessage(
+          this.channelStorage.channelId, 
+          'CHANNEL_STORAGE_TEST: Verifying channel access...',
+          { disable_notification: true }
+        );
+        console.log('Test message sent successfully to channel');
+      } catch (error) {
+        console.error('Failed to send test message to channel:', error);
+        console.error('This usually indicates an invalid channel ID or the bot not having access to the channel');
+        
+        // Log the error
+        if (storageInstance) {
+          storageInstance.createLog({
+            level: 'ERROR',
+            source: 'Telegram',
+            message: `Failed to connect to channel: ${error.message || 'Unknown error'}`
+          });
+        }
+        return false;
+      }
+      
+      // If we reach here, the channel is accessible
+      this.channelStorage.enabled = true;
+      
+      // Verify it was properly enabled
+      const isEnabled = this.isChannelStorageEnabled();
+      console.log('Channel storage status:', 
+        isEnabled ? 'Enabled' : 'Not enabled',
+        'with channel ID:', this.channelStorage.channelId || 'none');
+      
+      // Send confirmation message to the channel
+      if (isEnabled) {
+        try {
+          await this.bot.telegram.sendMessage(
+            this.channelStorage.channelId, 
+            '✅ CHANNEL STORAGE ENABLED: This channel will now be used for database storage.',
+            { disable_notification: true }
+          );
           
           // Log successful channel connection
           if (storageInstance) {
@@ -906,20 +951,18 @@ export class TelegramBot {
               message: `Connected to Telegram channel with ID: ${this.channelStorage.channelId}`
             });
           }
-        })
-        .catch((error) => {
-          console.error('Failed to send test message to channel:', error);
-          console.error('This usually indicates an invalid channel ID or the bot not having access to the channel');
           
-          // Log the error
-          if (storageInstance) {
-            storageInstance.createLog({
-              level: 'ERROR',
-              source: 'Telegram',
-              message: `Failed to connect to channel: ${error.message}`
-            });
-          }
-        });
+          return true;
+        } catch (error) {
+          console.error('Failed to send confirmation message to channel:', error);
+          return isEnabled; // Still return true if we enabled it
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Unexpected error enabling channel storage:', error);
+      return false;
     }
   }
   

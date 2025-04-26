@@ -864,31 +864,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Enable channel storage with the provided ID
-      telegramBot.enableChannelStorage(channelId);
+      console.log('API: Calling enableChannelStorage with channelId:', channelId);
+      const success = await telegramBot.enableChannelStorage(channelId);
       
-      // Verify that channel storage is enabled
-      const isEnabled = telegramBot.isChannelStorageEnabled();
-      const actualChannelId = telegramBot.getChannelId();
-      
-      if (!isEnabled || actualChannelId !== channelId) {
-        console.error('Failed to enable channel storage: isEnabled=', isEnabled, 'channelId=', actualChannelId);
+      if (!success) {
+        console.error('API: Failed to enable channel storage for ID:', channelId);
         return res.status(500).json({
           success: false,
-          error: 'Failed to enable channel storage'
+          error: 'Failed to enable channel storage - please check server logs for details'
         });
       }
       
+      // Verify once more that the channel is enabled with the correct ID
+      const isEnabled = telegramBot.isChannelStorageEnabled();
+      const actualChannelId = telegramBot.getChannelId();
+      
+      console.log('API: Channel storage enabled status:', {
+        isEnabled,
+        channelId: actualChannelId,
+        expectedChannelId: channelId
+      });
+      
       // Test save to channel to verify it's working properly
       try {
-        const testResult = await telegramBot.saveToChannel('test', { timestamp: new Date().toISOString() });
+        console.log('API: Sending test message to channel...');
+        const testResult = await telegramBot.saveToChannel('test', { 
+          timestamp: new Date().toISOString(),
+          message: 'Channel storage test from API'
+        });
+        
         if (!testResult) {
+          console.error('API: Failed to send test message to channel');
           return res.status(500).json({
             success: false,
             error: 'Failed to send test message to channel - please check the channel ID and bot permissions'
           });
         }
+        
+        console.log('API: Test message sent successfully');
       } catch (err) {
-        console.error('Error testing channel storage:', err);
+        console.error('API: Error testing channel storage:', err);
       }
       
       // Log the action
