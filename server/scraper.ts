@@ -304,7 +304,6 @@ export class WovIeX {
               logInfo('Scraper', `Extracted ${this._lastQualityOptions.length} quality options from API`);
               
               // Look for subtitle data in the API response
-              let subtitleData = undefined;
               if (apiData.subtitles && Array.isArray(apiData.subtitles) && apiData.subtitles.length > 0) {
                 // Convert subtitle info to our format
                 const subtitleOptions: SubtitleOption[] = apiData.subtitles.map((sub: any) => ({
@@ -317,12 +316,13 @@ export class WovIeX {
                 // Store for insertion
                 if (subtitleOptions.length > 0) {
                   logInfo('Scraper', `Extracted ${subtitleOptions.length} subtitle options from API`);
-                  subtitleData = subtitleOptionsToStringArray(subtitleOptions);
+                  // Store subtitle options directly
+                  this._lastSubtitleOptions = subtitleOptions;
                 }
+              } else {
+                // Reset subtitle options if none found
+                this._lastSubtitleOptions = [];
               }
-              
-              // Store subtitle data
-              this._lastSubtitleOptions = subtitleData ? JSON.parse(subtitleData) : [];
               
               if (files[0] && files[0].file) {
                 videoUrl = files[0].file;
@@ -476,7 +476,13 @@ export class WovIeX {
           qualityOptions: this._lastQualityOptions.length > 0 ? 
             qualityOptionsToStringArray(this._lastQualityOptions) :
             undefined,
-          subtitleOptions: subtitleData // Include subtitle data if we found any
+          subtitleOptions: this._lastSubtitleOptions.length > 0 ?
+            subtitleOptionsToStringArray(this._lastSubtitleOptions.map(item => ({
+              label: item.label,
+              url: item.url,
+              language: item.language || 'en'
+            }))) :
+            undefined
         };
         
         // Store in database - always store the base video with the current URL
