@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { videoScraper } from "./scraper";
@@ -9,12 +9,14 @@ import { insertDomainSchema, insertLogSchema } from "@shared/schema";
 import { authMiddleware, loginAdmin } from "./auth";
 import fs from "fs";
 import path from "path";
+import https from "https";
+import http from "http";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
   // Stream endpoint for securely serving video content
-  app.get('/stream/:token', async (req, res) => {
+  app.get('/stream/:token', (req, res) => {
     const token = req.params.token;
     const range = req.headers.range;
     
@@ -26,66 +28,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).send('Invalid or expired video access token');
       }
       
-      // Fetch the video from the source with a HEAD request to get content info
-      const videoResponse = await fetch(videoUrl, { method: 'HEAD' });
+      // Parse the URL to prepare for the request
+      const parsedUrl = new URL(videoUrl);
       
-      if (!videoResponse.ok) {
-        return res.status(videoResponse.status).send('Unable to access video content');
-      }
+      // Options for HEAD request to get content info
+      const headOptions = {
+        method: 'HEAD',
+        host: parsedUrl.hostname,
+        path: parsedUrl.pathname + parsedUrl.search,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      };
       
-      // Get content info
-      const contentLength = Number(videoResponse.headers.get('content-length') || '0');
-      const contentType = videoResponse.headers.get('content-type') || 'video/mp4';
-      
-      // If range request, handle partial content (streaming)
-      if (range) {
-        // Parse range
-        const parts = range.replace(/bytes=/, '').split('-');
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : contentLength - 1;
-        const chunkSize = end - start + 1;
+      // Make HEAD request to get content info
+      const headReq = https.request(headOptions, (headRes) => {
+        if (headRes.statusCode !== 200) {
+          res.status(headRes.statusCode || 500).send('Unable to access video content');
+          return;
+        }
         
-        // Fetch the proper chunk
-        const videoChunkResponse = await fetch(videoUrl, {
+        // Get content info
+        const contentLength = Number(headRes.headers['content-length'] || '0');
+        const contentType = headRes.headers['content-type'] || 'video/mp4';
+        
+        // Options for GET request (for actual content)
+        const getOptions: https.RequestOptions = {
+          method: 'GET',
+          host: parsedUrl.hostname,
+          path: parsedUrl.pathname + parsedUrl.search,
           headers: {
-            Range: `bytes=${start}-${end}`
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
           }
-        });
+        };
         
-        // Ensure proper status code and headers for range requests
-        res.status(206);
-        res.setHeader('Content-Range', `bytes ${start}-${end}/${contentLength}`);
-        res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Content-Length', chunkSize);
-        res.setHeader('Content-Type', contentType);
-        
-        // Stream the content from fetch Response (which uses ReadableStream)
-        // Convert ReadableStream to Node.js Readable stream
-        if (videoChunkResponse.body) {
-          const { Readable } = require('stream');
-          const nodeReadable = Readable.fromWeb(videoChunkResponse.body);
-          nodeReadable.pipe(res);
+        // If range request, handle partial content (streaming)
+        if (range) {
+          // Parse range
+          const parts = range.replace(/bytes=/, '').split('-');
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : contentLength - 1;
+          const chunkSize = end - start + 1;
+          
+          // Add range header to options
+          if (!getOptions.headers) getOptions.headers = {};
+          getOptions.headers['Range'] = `bytes=${start}-${end}`;
+          
+          // Fetch the proper chunk
+          const videoReq = https.request(getOptions, (videoRes) => {
+            // Ensure proper status code and headers for range requests
+            res.status(206);
+            res.setHeader('Content-Range', `bytes ${start}-${end}/${contentLength}`);
+            res.setHeader('Accept-Ranges', 'bytes');
+            res.setHeader('Content-Length', chunkSize);
+            res.setHeader('Content-Type', contentType);
+            
+            // Pipe the video response to the client response
+            videoRes.pipe(res);
+          });
+          
+          videoReq.on('error', (error) => {
+            console.error('Error streaming video chunk:', error);
+            res.status(500).send('Error streaming video content');
+          });
+          
+          videoReq.end();
         } else {
-          throw new Error('No response body received');
+          // No range requested, serve the whole file
+          res.setHeader('Content-Length', contentLength);
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Accept-Ranges', 'bytes');
+          
+          // Fetch the entire video
+          const videoReq = https.request(getOptions, (videoRes) => {
+            // Pipe the video response to the client response
+            videoRes.pipe(res);
+          });
+          
+          videoReq.on('error', (error) => {
+            console.error('Error streaming full video:', error);
+            res.status(500).send('Error streaming video content');
+          });
+          
+          videoReq.end();
         }
-      } else {
-        // No range requested, serve the whole file
-        res.setHeader('Content-Length', contentLength);
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Accept-Ranges', 'bytes');
-        
-        // Stream the entire video from fetch Response
-        const fullVideoResponse = await fetch(videoUrl);
-        
-        // Convert ReadableStream to Node.js Readable stream
-        if (fullVideoResponse.body) {
-          const { Readable } = require('stream');
-          const nodeReadable = Readable.fromWeb(fullVideoResponse.body);
-          nodeReadable.pipe(res);
-        } else {
-          throw new Error('No response body received');
-        }
-      }
+      });
+      
+      headReq.on('error', (error) => {
+        console.error('Error getting video info:', error);
+        res.status(500).send('Error streaming video content');
+      });
+      
+      headReq.end();
     } catch (error) {
       console.error('Streaming error:', error);
       res.status(500).send('Error streaming video content');
