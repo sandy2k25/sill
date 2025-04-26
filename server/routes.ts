@@ -11,6 +11,7 @@ import fs from "fs";
 import path from "path";
 import https from "https";
 import http from "http";
+import crypto from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -1679,6 +1680,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
   } else {
     console.log('Telegram bot token not found or invalid. Bot will not start automatically.');
   }
+  
+  // Encrypted /tahh route for secure video access
+  app.get('/tahh/:encryptedData', async (req, res) => {
+    try {
+      const { encryptedData } = req.params;
+      
+      if (!encryptedData) {
+        return res.status(400).send('Invalid request format');
+      }
+      
+      // Decrypt the data
+      const decryptedData = decryptVideoUrl(encryptedData);
+      
+      // Parse the decrypted data (expected format: "videoId:timestamp:signature")
+      const [videoId, timestamp, signature] = decryptedData.split(':');
+      
+      // Validate timestamp to prevent old links from working (e.g., 24h expiration)
+      const linkTimestamp = parseInt(timestamp, 10);
+      const now = Math.floor(Date.now() / 1000);
+      const oneDay = 24 * 60 * 60; // 24 hours in seconds
+      
+      if (now - linkTimestamp > oneDay) {
+        return res.status(403).send('Link has expired');
+      }
+      
+      // Verify signature if included
+      if (signature) {
+        // Could add additional signature verification here
+      }
+      
+      // Get video data from storage
+      const video = await storage.getVideoByVideoId(videoId);
+      
+      if (!video) {
+        // Attempt to scrape it first
+        try {
+          const scrapedVideo = await videoScraper.scrapeVideo(videoId);
+          if (scrapedVideo) {
+            const createdVideo = await storage.createVideo(scrapedVideo);
+            // Log the access
+            storage.incrementAccessCount(videoId).catch(err => console.error('Failed to increment access count:', err));
+            
+            storage.createLog({
+              level: 'INFO',
+              source: 'Tahh',
+              message: `Video ${videoId} accessed via encrypted /tahh route and scraped successfully`
+            }).catch(err => console.error('Failed to log access:', err));
+            
+            // Render the player
+            return res.send(renderPlayer(createdVideo));
+          }
+        } catch (scrapeError) {
+          console.error('Error scraping video:', scrapeError);
+          return res.status(404).send('Video not found');
+        }
+      } else {
+        // Log the access
+        storage.incrementAccessCount(videoId).catch(err => console.error('Failed to increment access count:', err));
+        
+        storage.createLog({
+          level: 'INFO',
+          source: 'Tahh',
+          message: `Video ${videoId} accessed via encrypted /tahh route`
+        }).catch(err => console.error('Failed to log access:', err));
+        
+        // Render the player
+        return res.send(renderPlayer(video));
+      }
+    } catch (error) {
+      console.error('Error in /tahh route:', error);
+      return res.status(500).send('An error occurred processing your request');
+    }
+  });
+  
+  // Utility function to generate encrypted /tahh links
+  app.get('/api/tahh/generate/:videoId', authMiddleware, async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      
+      if (!videoId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Video ID is required'
+        });
+      }
+      
+      // Create the data to encrypt (videoId:timestamp:signature)
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signature = crypto.createHash('sha256').update(`${videoId}:${timestamp}:${ENCRYPTION_KEY}`).digest('hex').substring(0, 16);
+      const dataToEncrypt = `${videoId}:${timestamp}:${signature}`;
+      
+      // Encrypt the data
+      const encryptedData = encryptVideoUrl(dataToEncrypt);
+      
+      // Create the encrypted URL
+      const encryptedUrl = `${req.protocol}://${req.get('host')}/tahh/${encryptedData}`;
+      
+      return res.json({
+        success: true,
+        data: {
+          url: encryptedUrl,
+          expires: new Date((timestamp + 24 * 60 * 60) * 1000).toISOString() // 24h from now
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
   
   // Custom error page route for player errors
   app.get('/error/player', (req, res) => {

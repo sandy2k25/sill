@@ -325,6 +325,91 @@
       100% { transform: rotate(360deg); }
     }
     
+    /* Play/Pause animation */
+    .play-pause-animation {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.6), rgba(192, 38, 211, 0.6));
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 990;
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .play-pause-animation.active {
+      animation: pulseIconAnimation 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    }
+    
+    .play-pause-animation .icon {
+      width: 40px;
+      height: 40px;
+      position: relative;
+    }
+    
+    .play-icon {
+      display: none;
+    }
+    
+    .play-icon:before {
+      content: '';
+      position: absolute;
+      left: 5px;
+      top: 0;
+      width: 0;
+      height: 0;
+      border-top: 20px solid transparent;
+      border-bottom: 20px solid transparent;
+      border-left: 35px solid white;
+      filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.5));
+    }
+    
+    .pause-icon {
+      display: none;
+    }
+    
+    .pause-icon:before,
+    .pause-icon:after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 40px;
+      background-color: white;
+      border-radius: 3px;
+      filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.5));
+    }
+    
+    .pause-icon:before {
+      left: 5px;
+    }
+    
+    .pause-icon:after {
+      right: 5px;
+    }
+    
+    @keyframes pulseIconAnimation {
+      0% {
+        transform: translate(-50%, -50%) scale(0.7);
+        opacity: 0;
+      }
+      50% {
+        transform: translate(-50%, -50%) scale(1.1);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0;
+      }
+    }
+    
     .hidden {
       opacity: 0;
       pointer-events: none;
@@ -349,6 +434,14 @@
   <!-- Message container for player notifications -->
   <div id="message" class="player-message"></div>
   
+  <!-- Play/Pause animation overlay -->
+  <div id="playPauseAnimation" class="play-pause-animation">
+    <div class="icon">
+      <div id="playIcon" class="play-icon"></div>
+      <div id="pauseIcon" class="pause-icon"></div>
+    </div>
+  </div>
+  
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -357,6 +450,9 @@
       const qualityIndicator = document.getElementById('qualityIndicator');
       const messageElement = document.getElementById('message');
       const loadingOverlay = document.getElementById('loadingOverlay');
+      const playPauseAnimation = document.getElementById('playPauseAnimation');
+      const playIcon = document.getElementById('playIcon');
+      const pauseIcon = document.getElementById('pauseIcon');
       
       // Load saved quality and subtitle preferences
       const savedQuality = localStorage.getItem('wovie_preferred_quality');
