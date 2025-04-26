@@ -1464,7 +1464,27 @@ export class TelegramBot {
    * Check if user ID is in admin list
    */
   private isAdminUser(userId: number): boolean {
-    return this.adminUsers.has(userId);
+    // First check the Set for authenticated users
+    if (this.adminUsers.has(userId)) {
+      return true;
+    }
+    
+    // Then check the environment variable for admin users
+    const adminIdsStr = process.env.TELEGRAM_ADMIN_USERS;
+    if (adminIdsStr) {
+      try {
+        const adminIds = adminIdsStr.split(',').map(id => parseInt(id.trim()));
+        if (adminIds.includes(userId)) {
+          // Add to the Set for future checks
+          this.adminUsers.add(userId);
+          return true;
+        }
+      } catch (error) {
+        console.warn('Error parsing TELEGRAM_ADMIN_USERS:', error);
+      }
+    }
+    
+    return false;
   }
   
   /**
