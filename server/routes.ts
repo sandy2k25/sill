@@ -191,13 +191,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       const video = await videoScraper.scrapeVideo(id);
+      
+      // Check if URL exists
+      if (!video.url) {
+        throw new Error('Failed to extract video URL');
+      }
+      
+      // Log access
+      await storage.createLog({
+        level: 'INFO',
+        source: 'API',
+        message: `Redirecting to video ${id} via /tahh endpoint`
+      }).catch(err => console.error('Failed to log access:', err));
+      
+      // Increment counter
+      await storage.incrementAccessCount(id).catch(err => console.error('Failed to increment access count:', err));
+      
       return res.redirect(video.url);
     } catch (error) {
       await storage.createLog({
         level: 'ERROR',
         source: 'API',
         message: `Error redirecting to video ${id}: ${error instanceof Error ? error.message : String(error)}`
-      });
+      }).catch(err => console.error('Failed to log error:', err));
       
       return res.status(500).send(`
         <html>
@@ -246,6 +262,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, streamUrl);
         playerTemplate = playerTemplate.replace(/\$\{video\.title[^}]*\}/g, video.title || 'Video Player');
         playerTemplate = playerTemplate.replace(/\$\{video\.quality[^}]*\}/g, video.quality || 'HD');
+        
+        // Handle quality options
+        const qualityOptionsJSON = JSON.stringify(video.qualityOptions || []);
+        playerTemplate = playerTemplate.replace(/\$\{JSON\.stringify\(video\.qualityOptions \|\| \[\]\)\}/g, qualityOptionsJSON);
+        
+        // Handle subtitle options
+        const subtitleOptionsJSON = JSON.stringify(video.subtitleOptions || []);
+        playerTemplate = playerTemplate.replace(/\$\{JSON\.stringify\(video\.subtitleOptions \|\| \[\]\)\}/g, subtitleOptionsJSON);
         
         return res.send(playerTemplate);
       } catch (templateError) {
@@ -443,6 +467,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, streamUrl);
         playerTemplate = playerTemplate.replace(/\$\{video\.title[^}]*\}/g, titleWithSeasonEp);
         playerTemplate = playerTemplate.replace(/\$\{video\.quality[^}]*\}/g, video.quality || 'HD');
+        
+        // Handle quality options
+        const qualityOptionsJSON = JSON.stringify(video.qualityOptions || []);
+        playerTemplate = playerTemplate.replace(/\$\{JSON\.stringify\(video\.qualityOptions \|\| \[\]\)\}/g, qualityOptionsJSON);
+        
+        // Handle subtitle options
+        const subtitleOptionsJSON = JSON.stringify(video.subtitleOptions || []);
+        playerTemplate = playerTemplate.replace(/\$\{JSON\.stringify\(video\.subtitleOptions \|\| \[\]\)\}/g, subtitleOptionsJSON);
         
         return res.send(playerTemplate);
       } catch (templateError) {

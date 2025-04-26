@@ -66,6 +66,7 @@ export class WovIeX {
   private browser: Browser | null = null;
   private storage: any = null;
   private _lastQualityOptions: { label: string, url: string }[] = []; // Store quality options from last scrape
+  private _lastSubtitleOptions: { label: string, url: string, language?: string }[] = []; // Store subtitle options from last scrape
   private settings = {
     timeout: 30000, // 30 seconds
     autoRetry: true,
@@ -319,6 +320,9 @@ export class WovIeX {
                   subtitleData = subtitleOptionsToStringArray(subtitleOptions);
                 }
               }
+              
+              // Store subtitle data
+              this._lastSubtitleOptions = subtitleData ? JSON.parse(subtitleData) : [];
               
               if (files[0] && files[0].file) {
                 videoUrl = files[0].file;
