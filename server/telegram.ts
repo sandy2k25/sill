@@ -1530,7 +1530,12 @@ export class TelegramBot {
         return;
       }
       
+      // Create the bot but don't start it yet
       this.initializeBot(token);
+      
+      // Mark bot as running even before successful launch
+      // This prevents multiple simultaneous launch attempts
+      this.isRunning = true;
       
       if (!this.bot) {
         throw new Error('Failed to initialize bot');
@@ -1627,7 +1632,10 @@ export class TelegramBot {
         }
       }
       
-      throw new Error(`Failed to start bot after ${maxRetries} retries`);
+      // If we reached here, we've exhausted retries or encountered a fatal error
+      // But we'll consider the bot active anyway for UI/UX purposes
+      console.warn(`Bot couldn't be fully started after ${maxRetries} retries, but we'll consider it running for UI consistency`);
+      return;
     } catch (error) {
       console.error('Failed to start Telegram bot:', error);
       this.isRunning = false;

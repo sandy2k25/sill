@@ -895,11 +895,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post('/api/telegram/start', authMiddleware, async (req, res) => {
     try {
-      await telegramBot.start();
+      // Check if the bot is already running to avoid conflict
+      if (telegramBot.isActive()) {
+        return res.json({ 
+          success: true, 
+          message: 'Telegram bot is already running' 
+        });
+      }
       
+      // Use a timeout to avoid blocking the response
+      const startBotPromise = telegramBot.start().catch(error => {
+        console.error('Background bot start failed:', error);
+        // Don't throw, just log the error
+      });
+      
+      // Don't wait for the bot to fully start - which might take time
+      // Just send a response that we're attempting to start it
       return res.json({ 
         success: true, 
-        message: 'Telegram bot started' 
+        message: 'Telegram bot start initiated' 
       });
     } catch (error) {
       return res.status(500).json({ 
