@@ -1506,13 +1506,17 @@ export class TelegramBot {
         return;
       }
       
-      // If we have an existing bot instance, stop it first to avoid conflicts
+      // If we have an existing bot instance, try to stop it, but don't worry if it fails
       if (this.bot) {
         try {
-          await this.bot.stop();
-          console.log('Stopped existing Telegram bot instance');
+          // Only try to stop if it's actually running
+          if (this.isRunning) {
+            await this.bot.stop();
+            console.log('Stopped existing Telegram bot instance');
+          }
         } catch (stopError) {
-          console.warn('Could not stop existing bot instance:', stopError);
+          // Ignore errors when stopping the bot - it might not be running yet
+          console.warn('Could not stop existing bot instance - this is usually harmless');
         }
         
         // Wait a moment before restarting
@@ -1996,28 +2000,48 @@ export class TelegramBot {
    * Save a video to the Telegram channel
    */
   async saveVideo(video: Video): Promise<boolean> {
-    return this.saveToChannel(`video:${video.videoId}`, video);
+    try {
+      return await this.saveToChannel(`video:${video.videoId}`, video);
+    } catch (error) {
+      console.error(`Error saving video to channel: ${error}`);
+      return false;
+    }
   }
   
   /**
    * Save a domain to the Telegram channel
    */
   async saveDomain(domain: Domain): Promise<boolean> {
-    return this.saveToChannel(`domain:${domain.id}`, domain);
+    try {
+      return await this.saveToChannel(`domain:${domain.id}`, domain);
+    } catch (error) {
+      console.error(`Error saving domain to channel: ${error}`);
+      return false;
+    }
   }
   
   /**
    * Save a log to the Telegram channel
    */
   async saveLog(log: Log): Promise<boolean> {
-    return this.saveToChannel(`log:${log.id}`, log);
+    try {
+      return await this.saveToChannel(`log:${log.id}`, log);
+    } catch (error) {
+      console.error(`Error saving log to channel: ${error}`);
+      return false;
+    }
   }
   
   /**
    * Save settings to the Telegram channel
    */
   async saveSettings(settings: ScraperSettings): Promise<boolean> {
-    return this.saveToChannel('settings', settings);
+    try {
+      return await this.saveToChannel('settings', settings);
+    } catch (error) {
+      console.error(`Error saving settings to channel: ${error}`);
+      return false;
+    }
   }
   
   /**
