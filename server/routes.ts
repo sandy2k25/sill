@@ -296,6 +296,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               pointer-events: none;
               text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
             }
+            .video-title {
+              position: absolute;
+              top: 10px;
+              left: 50%;
+              transform: translateX(-50%);
+              color: white;
+              font-family: Arial, sans-serif;
+              font-weight: bold;
+              font-size: 16px;
+              z-index: 99;
+              background-color: rgba(0, 0, 0, 0.5);
+              padding: 5px 10px;
+              border-radius: 5px;
+              pointer-events: none;
+              text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 60%;
+              text-align: center;
+            }
           </style>
         </head>
         <body>
