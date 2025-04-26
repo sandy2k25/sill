@@ -808,11 +808,23 @@ export class TelegramBot {
    * Enable Telegram channel as database storage
    */
   enableChannelStorage(channelId?: string): void {
+    console.log('Enabling channel storage with ID:', channelId || 'none provided');
+
+    if (!channelId && !this.channelStorage.channelId) {
+      console.error('Cannot enable channel storage: No channel ID provided and none stored');
+      return;
+    }
+    
     if (channelId) {
       this.channelStorage.channelId = channelId;
     }
     
     this.channelStorage.enabled = true;
+    
+    // Verify it was properly enabled
+    console.log('Channel storage status:', 
+      this.isChannelStorageEnabled() ? 'Enabled' : 'Not enabled',
+      'with channel ID:', this.channelStorage.channelId || 'none');
   }
   
   /**

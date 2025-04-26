@@ -863,7 +863,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Enable channel storage with the provided ID
       telegramBot.enableChannelStorage(channelId);
+      
+      // Verify that channel storage is enabled
+      const isEnabled = telegramBot.isChannelStorageEnabled();
+      const actualChannelId = telegramBot.getChannelId();
+      
+      if (!isEnabled || actualChannelId !== channelId) {
+        console.error('Failed to enable channel storage: isEnabled=', isEnabled, 'channelId=', actualChannelId);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to enable channel storage'
+        });
+      }
+      
+      // Test save to channel to verify it's working properly
+      try {
+        const testResult = await telegramBot.saveToChannel('test', { timestamp: new Date().toISOString() });
+        if (!testResult) {
+          return res.status(500).json({
+            success: false,
+            error: 'Failed to send test message to channel - please check the channel ID and bot permissions'
+          });
+        }
+      } catch (err) {
+        console.error('Error testing channel storage:', err);
+      }
       
       // Log the action
       await storage.createLog({
@@ -877,6 +903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: 'Channel storage enabled successfully' 
       });
     } catch (error) {
+      console.error('Error enabling channel storage:', error);
       return res.status(500).json({ 
         success: false, 
         error: error instanceof Error ? error.message : 'An unknown error occurred' 
