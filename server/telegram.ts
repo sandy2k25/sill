@@ -957,48 +957,171 @@ export class TelegramBot {
     
     // Command to verify channel access
     this.bot.command('verify_channel', async (ctx) => {
-      const text = ctx.message.text;
-      const args = text.split(' ');
-      
-      if (args.length < 2) {
-        await ctx.reply('❌ Please provide a channel ID to verify. Usage: /verify_channel [channel_id]');
-        return;
-      }
-      
-      const channelId = args[1];
-      await ctx.reply(`🔍 Verifying access to channel ID: ${channelId}...`);
-      
       try {
-        const result = await this.verifyChannelAccess(channelId);
+        const text = ctx.message.text;
+        const args = text.split(' ');
         
-        if (result.valid) {
-          let message = `✅ Success! Bot has access to this channel.`;
+        if (args.length < 2) {
+          await ctx.reply(
+            '❌ Please provide a channel ID to verify.\n\n' +
+            'Example: /verify_channel -1001234567890'
+          );
+          return;
+        }
+        
+        const channelId = args[1].trim();
+        
+        // Format the channel ID
+        const formattedChannelId = this.formatChannelId(channelId);
+        
+        await ctx.reply(
+          `🔍 *Verifying Channel ID*\n\n` +
+          `Original ID: \`${channelId}\`\n` +
+          `Formatted ID: \`${formattedChannelId}\`\n\n` +
+          `Attempting to verify access...`,
+          { parse_mode: 'Markdown' }
+        );
+        
+        try {
+          // Now try to send a test message to the channel
+          await this.bot.telegram.sendMessage(
+            formattedChannelId, 
+            'CHANNEL_VERIFICATION: This is a test message to verify bot access to this channel.',
+            { disable_notification: true }
+          );
           
-          if (result.correctedId) {
-            message += `\n\nℹ️ Note: The channel ID was reformatted to: ${result.correctedId}`;
-            message += `\n\nPlease use this ID when enabling channel storage.`;
+          // If we get here, the message was sent successfully
+          await ctx.reply(
+            `✅ *Verification Successful!*\n\n` +
+            `The bot has successfully sent a message to the channel with ID: \`${formattedChannelId}\`\n\n` +
+            `You can now use this channel for storage with:\n` +
+            `/channel enable ${formattedChannelId}`,
+            { 
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ 
+                    text: "Enable Channel Storage", 
+                    callback_data: `channel_enable:${formattedChannelId}` 
+                  }],
+                  [{ text: "Back to Menu", callback_data: "menu" }]
+                ]
+              }
+            }
+          );
+        } catch (error) {
+          // Failed to send the message
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          
+          let troubleshooting = "";
+          if (errorMessage.includes("chat not found")) {
+            troubleshooting = 
+              "Possible reasons:\n" +
+              "1. The channel ID is incorrect\n" +
+              "2. The bot is not a member of the channel\n" +
+              "3. Make sure you added the bot as an admin to the channel";
+          } else if (errorMessage.includes("forbidden")) {
+            troubleshooting = 
+              "The bot doesn't have permission to post in this channel.\n" +
+              "Make sure the bot is an admin with the permission to post messages.";
           }
           
-          await ctx.reply(message, {
-            reply_markup: {
-              inline_keyboard: [
-                [
-                  { 
-                    text: "Enable Channel Storage", 
-                    callback_data: `enable_channel:${result.correctedId || channelId}` 
-                  }
-                ],
-                [
-                  { text: "Back to Menu", callback_data: "menu" }
-                ]
-              ]
-            }
-          });
-        } else {
-          await ctx.reply(`❌ Verification failed: ${result.message}\n\nMake sure:\n1. The channel ID is correct\n2. The bot is a member of the channel\n3. The bot has admin privileges in the channel`);
+          await ctx.reply(
+            `❌ *Verification Failed*\n\n` +
+            `Error: ${errorMessage}\n\n` +
+            `${troubleshooting}\n\n` +
+            `Try with another channel ID or check the bot's permissions.`,
+            { parse_mode: 'Markdown' }
+          );
         }
       } catch (error) {
-        await ctx.reply(`❌ Error verifying channel: ${error instanceof Error ? error.message : String(error)}`);
+        console.error('Error in verify_channel command:', error);
+        await ctx.reply(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+    
+    // Add a verifychannel command (alternative to verify_channel)
+    this.bot.command('verifychannel', async (ctx) => {
+      try {
+        const text = ctx.message.text;
+        const args = text.split(' ');
+        
+        if (args.length < 2) {
+          await ctx.reply(
+            '❌ Please provide a channel ID to verify.\n\n' +
+            'Example: /verifychannel -1001234567890'
+          );
+          return;
+        }
+        
+        const channelId = args[1].trim();
+        
+        // Format the channel ID
+        const formattedChannelId = this.formatChannelId(channelId);
+        
+        await ctx.reply(
+          `🔍 *Verifying Channel ID*\n\n` +
+          `Original ID: \`${channelId}\`\n` +
+          `Formatted ID: \`${formattedChannelId}\`\n\n` +
+          `Attempting to verify access...`,
+          { parse_mode: 'Markdown' }
+        );
+        
+        try {
+          // Now try to send a test message to the channel
+          await this.bot.telegram.sendMessage(
+            formattedChannelId, 
+            'CHANNEL_VERIFICATION: This is a test message to verify bot access to this channel.',
+            { disable_notification: true }
+          );
+          
+          // If we get here, the message was sent successfully
+          await ctx.reply(
+            `✅ *Verification Successful!*\n\n` +
+            `The bot has successfully sent a message to the channel with ID: \`${formattedChannelId}\`\n\n` +
+            `You can now use this channel for storage with:\n` +
+            `/channel enable ${formattedChannelId}`,
+            { 
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ 
+                    text: "Enable Channel Storage", 
+                    callback_data: `channel_enable:${formattedChannelId}` 
+                  }],
+                  [{ text: "Back to Menu", callback_data: "menu" }]
+                ]
+              }
+            }
+          );
+        } catch (error) {
+          // Failed to send the message
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          
+          let troubleshooting = "";
+          if (errorMessage.includes("chat not found")) {
+            troubleshooting = 
+              "Possible reasons:\n" +
+              "1. The channel ID is incorrect\n" +
+              "2. The bot is not a member of the channel\n" +
+              "3. Make sure you added the bot as an admin to the channel";
+          } else if (errorMessage.includes("forbidden")) {
+            troubleshooting = 
+              "The bot doesn't have permission to post in this channel.\n" +
+              "Make sure the bot is an admin with the permission to post messages.";
+          }
+          
+          await ctx.reply(
+            `❌ *Verification Failed*\n\n` +
+            `Error: ${errorMessage}\n\n` +
+            `${troubleshooting}\n\n` +
+            `Try with another channel ID or check the bot's permissions.`,
+            { parse_mode: 'Markdown' }
+          );
+        }
+      } catch (error) {
+        console.error('Error in verifychannel command:', error);
+        await ctx.reply(`Error: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
     
