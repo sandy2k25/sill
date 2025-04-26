@@ -21,6 +21,7 @@ export const videos = pgTable("videos", {
   title: text("title").default(""),
   url: text("url").notNull(),
   quality: text("quality").default("HD"),
+  qualityOptions: text("quality_options").array(), // Array of quality options as JSON strings
   scrapedAt: timestamp("scraped_at").defaultNow(),
   lastAccessed: timestamp("last_accessed").defaultNow(),
   accessCount: integer("access_count").default(0),

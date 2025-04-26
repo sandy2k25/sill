@@ -373,14 +373,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/fulltaah/:seasonid/:episodeid/:id', embedProtectionMiddleware, async (req, res) => {
     const { seasonid, episodeid, id } = req.params;
     
+    console.log(`Received request for fulltaah with seasonid=${seasonid}, episodeid=${episodeid}, id=${id}`);
+    
     try {
+      console.log(`Attempting to scrape video ${id} with season ${seasonid}, episode ${episodeid}`);
       // Call scrapeVideo with season and episode parameters
       const video = await videoScraper.scrapeVideo(id, seasonid, episodeid);
       
+      console.log(`Scraper results for ${id}: URL exists: ${Boolean(video.url)}, Title: ${video.title || 'None'}`);
+      
       // Check if we have a valid title and URL
       if (!video.url) {
-        throw new Error('Failed to get video URL');
+        console.error(`No URL found for video ${id}`);
+        
+        // Instead of throwing an error, show a user-friendly error page
+        return res.status(404).send(`
+          <html>
+            <head>
+              <title>Video Not Available</title>
+              <style>
+                body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; text-align: center; }
+                .error-container { padding: 20px; border: 1px solid #f1f1f1; border-radius: 5px; }
+                .error-title { color: #e74c3c; }
+                .back-button { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 4px; }
+              </style>
+            </head>
+            <body>
+              <div class="error-container">
+                <h1 class="error-title">Video Not Available</h1>
+                <p>Sorry, we couldn't find the video you're looking for. The video may have been removed or is not available.</p>
+                <p>Video ID: ${id}, Season: ${seasonid}, Episode: ${episodeid}</p>
+                <p>Title: ${video.title || 'Unknown'}</p>
+                <a href="javascript:history.back()" class="back-button">Go Back</a>
+              </div>
+            </body>
+          </html>
+        `);
       }
+      
+      console.log(`Successfully found video URL for ${id}`);
 
       // Increment access count
       await storage.incrementAccessCount(id);
@@ -494,19 +525,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.send(fallbackHtml);
       }
     } catch (error) {
-      await storage.createLog({
-        level: 'ERROR',
-        source: 'API',
-        message: `Error serving player for video ${id} with season ${seasonid}, episode ${episodeid}: ${error instanceof Error ? error.message : String(error)}`
-      });
+      console.error(`Error in fulltaah endpoint for ${id}:`, error instanceof Error ? error.message : String(error));
+      
+      try {
+        await storage.createLog({
+          level: 'ERROR',
+          source: 'API',
+          message: `Error serving player for video ${id} with season ${seasonid}, episode ${episodeid}: ${error instanceof Error ? error.message : String(error)}`
+        }).catch(err => console.error('Failed to log error:', err));
+      } catch (logError) {
+        console.error('Failed to log error:', logError);
+      }
       
       return res.status(500).send(`
         <html>
-          <head><title>Error</title></head>
+          <head>
+            <title>Video Error</title>
+            <style>
+              body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; text-align: center; }
+              .error-container { padding: 20px; border: 1px solid #f1f1f1; border-radius: 5px; }
+              .error-title { color: #e74c3c; }
+              .back-button { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 4px; }
+            </style>
+          </head>
           <body>
-            <h1>Error</h1>
-            <p>${error instanceof Error ? error.message : 'An unknown error occurred'}</p>
-            <a href="/">Go Back</a>
+            <div class="error-container">
+              <h1 class="error-title">Video Playback Error</h1>
+              <p>Sorry, we couldn't play this video. Please try again later or choose another video.</p>
+              <p>Error details: ${error instanceof Error ? error.message : 'Unknown error'}</p>
+              <p>Video ID: ${id}, Season: ${seasonid}, Episode: ${episodeid}</p>
+              <a href="javascript:history.back()" class="back-button">Go Back</a>
+            </div>
           </body>
         </html>
       `);
