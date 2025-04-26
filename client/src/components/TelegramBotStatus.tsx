@@ -164,8 +164,8 @@ const TelegramBotStatus: React.FC = () => {
             <CardDescription>Control bot and channel storage settings</CardDescription>
           </div>
           <Badge 
-            variant={status?.active ? "success" : "destructive"}
-            className="ml-2"
+            variant={status?.active ? "default" : "destructive"}
+            className={`ml-2 ${status?.active ? "bg-green-600 hover:bg-green-700" : ""}`}
           >
             {status?.active ? 'Online' : 'Offline'}
           </Badge>

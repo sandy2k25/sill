@@ -896,6 +896,13 @@ export class TelegramBot {
   isChannelStorageEnabled(): boolean {
     return !!this.channelStorage.enabled && !!this.channelStorage.channelId;
   }
+
+  /**
+   * Get the current channel ID for storage
+   */
+  getChannelId(): string | null {
+    return this.channelStorage.channelId || null;
+  }
 }
 
 export const telegramBot = new TelegramBot();

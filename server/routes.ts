@@ -755,15 +755,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Telegram bot management
-  app.get('/api/telegram/status', async (req, res) => {
+  app.get('/api/telegram/status', authMiddleware, async (req, res) => {
     try {
       const isActive = telegramBot.isActive();
+      const channelStorageEnabled = telegramBot.isChannelStorageEnabled();
+      const channelId = telegramBot.getChannelId();
       
       return res.json({ 
         success: true, 
         data: { 
           active: isActive,
-          botToken: !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.length > 10)
+          botToken: !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.length > 10),
+          channelStorageEnabled: channelStorageEnabled,
+          channelId: channelId
         }
       });
     } catch (error) {
@@ -797,6 +801,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({ 
         success: true, 
         message: 'Telegram bot stopped' 
+      });
+    } catch (error) {
+      return res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'An unknown error occurred' 
+      });
+    }
+  });
+  
+  // Channel storage management endpoints
+  app.post('/api/telegram/channel/enable', authMiddleware, async (req, res) => {
+    try {
+      const { channelId } = req.body;
+
+      if (!channelId || typeof channelId !== 'string') {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Valid channel ID is required' 
+        });
+      }
+      
+      if (!telegramBot.isActive()) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Telegram bot must be running to enable channel storage' 
+        });
+      }
+
+      telegramBot.enableChannelStorage(channelId);
+      
+      // Log the action
+      await storage.createLog({
+        level: 'INFO',
+        source: 'Telegram',
+        message: `Channel storage enabled with ID: ${channelId}`
+      });
+      
+      return res.json({ 
+        success: true, 
+        message: 'Channel storage enabled successfully' 
+      });
+    } catch (error) {
+      return res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'An unknown error occurred' 
+      });
+    }
+  });
+  
+  app.post('/api/telegram/channel/disable', authMiddleware, async (req, res) => {
+    try {
+      telegramBot.disableChannelStorage();
+      
+      // Log the action
+      await storage.createLog({
+        level: 'INFO',
+        source: 'Telegram',
+        message: 'Channel storage disabled'
+      });
+      
+      return res.json({ 
+        success: true, 
+        message: 'Channel storage disabled successfully' 
       });
     } catch (error) {
       return res.status(500).json({ 
@@ -842,16 +909,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (async () => {
         try {
           await telegramBot.start();
-          // Disable channel storage for now to prevent errors
-          telegramBot.disableChannelStorage();
-          console.log('Telegram channel storage is disabled to prevent errors');
           
-          /* Temporarily disabled to prevent errors
+          // Initialize with channel storage disabled
+          telegramBot.disableChannelStorage();
+          
+          // If channel ID is provided as environment variable, enable channel storage
           if (process.env.TELEGRAM_CHANNEL_ID) {
             console.log('Enabling Telegram channel database with ID:', process.env.TELEGRAM_CHANNEL_ID);
             telegramBot.enableChannelStorage(process.env.TELEGRAM_CHANNEL_ID);
+          } else {
+            console.log('Telegram channel storage is disabled. Configure through admin panel.');
           }
-          */
         } catch (error) {
           console.error('Failed to start Telegram bot:', error);
         }
