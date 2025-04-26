@@ -827,12 +827,8 @@ export class TelegramBot {
    * This method serializes data to JSON and sends it as a message to the configured Telegram channel
    */
   async saveToChannel<T>(key: string, data: T): Promise<boolean> {
-    // Completely disabled for now to prevent recurring errors
-    console.log('Telegram channel storage is completely disabled - not saving data for key:', key);
-    return false;
-    
-    /* Original implementation disabled
     if (!this.bot || !this.isRunning || !this.isChannelStorageEnabled() || !this.channelStorage.channelId) {
+      console.log('Telegram channel storage not available - not saving data for key:', key);
       return false;
     }
     
@@ -841,6 +837,7 @@ export class TelegramBot {
       
       // Use sendMessage directly to the channel
       await this.bot.telegram.sendMessage(this.channelStorage.channelId, messageText);
+      console.log(`Successfully saved data to Telegram channel for key: ${key}`);
       
       return true;
     } catch (error) {
@@ -863,7 +860,6 @@ export class TelegramBot {
       
       return false;
     }
-    */
   }
   
   /**
