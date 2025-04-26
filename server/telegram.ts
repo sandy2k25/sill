@@ -1548,34 +1548,81 @@ export class TelegramBot {
       while (retryCount < maxRetries) {
         try {
           // Determine if we're running in a VPS/cloud environment 
-          // This detects Koyeb/Cloudflare/similar serverless environments
-          const isServerlessEnv = process.env.KOYEB_APP_NAME || 
+          // This detects Koyeb/any cloud/VPS environment where webhook mode is preferred
+          const forceWebhook = process.env.USE_WEBHOOK === 'true';
+          const isServerlessEnv = forceWebhook || 
+                                 process.env.KOYEB_APP_NAME || 
+                                 process.env.KOYEB ||
                                  process.env.CF_PAGES || 
                                  process.env.VERCEL || 
-                                 process.env.NETLIFY;
+                                 process.env.NETLIFY ||
+                                 process.env.VPS ||
+                                 process.env.CLOUD_ENV;
+          
+          // Get the public domain from environment variables
+          const webhookDomain = process.env.PUBLIC_URL || 
+                              process.env.APP_URL || 
+                              process.env.WEBHOOK_URL ||
+                              process.env.BOT_WEBHOOK_URL;
           
           // Use webhook mode in cloud/VPS environments, polling in development
-          if (isServerlessEnv) {
-            // For webhook mode, we need a public URL
-            const webhookDomain = process.env.PUBLIC_URL || process.env.APP_URL;
-            
-            if (webhookDomain) {
-              const webhookUrl = `${webhookDomain}/api/telegram-webhook`;
-              console.log(`Starting Telegram bot in webhook mode: ${webhookUrl}`);
+          if (isServerlessEnv && webhookDomain) {
+            try {
+              // For webhook mode, construct the webhook URL
+              const webhookPath = '/api/telegram-webhook';
+              // Make sure the domain doesn't end with a slash before adding the path
+              const normalizedDomain = webhookDomain.endsWith('/') 
+                ? webhookDomain.slice(0, -1) 
+                : webhookDomain;
+                
+              const webhookUrl = `${normalizedDomain}${webhookPath}`;
+              console.log(`Starting Telegram bot in webhook mode for Koyeb/VPS: ${webhookUrl}`);
               
-              // Set webhook and launch in webhook mode
-              await this.bot.telegram.setWebhook(webhookUrl);
+              // Delete any existing webhook first to avoid conflicts
+              await this.bot.telegram.deleteWebhook();
               
-              // For webhook mode, we'll handle the updates through the Express route
-              console.log('Webhook set successfully, waiting for updates via HTTP endpoint');
-            } else {
-              console.log('No webhook domain found, falling back to polling mode');
+              // Set the webhook with the proper configuration
+              await this.bot.telegram.setWebhook(webhookUrl, {
+                drop_pending_updates: true,
+                allowed_updates: ['message', 'callback_query'],
+                max_connections: 100
+              });
+              
+              // Verify the webhook was set correctly
+              const webhookInfo = await this.bot.telegram.getWebhookInfo();
+              console.log('Webhook info:', JSON.stringify(webhookInfo, null, 2));
+              
+              if (webhookInfo.url === webhookUrl) {
+                console.log('Webhook set successfully, waiting for updates via HTTP endpoint');
+                
+                // In webhook mode, no need to call launch() - we'll receive updates via the webhook
+                this.isRunning = true;
+              } else {
+                console.error('Webhook URL mismatch, falling back to polling mode');
+                console.log(`Expected: ${webhookUrl}`);
+                console.log(`Actual: ${webhookInfo.url}`);
+                
+                // Fall back to polling if webhook setting fails
+                await this.bot.launch({
+                  dropPendingUpdates: true
+                });
+              }
+            } catch (webhookError) {
+              console.error('Error setting webhook:', webhookError);
+              console.log('Falling back to polling mode due to webhook error');
+              
+              // Fall back to polling if webhook setting fails
               await this.bot.launch({
                 dropPendingUpdates: true
               });
             }
           } else {
-            // Standard polling mode for development
+            // Standard polling mode for development or if webhook domain is not provided
+            if (isServerlessEnv) {
+              console.log('Running in serverless/VPS environment but no webhook domain found.');
+              console.log('Set PUBLIC_URL or APP_URL environment variable for webhook mode.');
+            }
+            
             console.log('Starting Telegram bot in polling mode');
             await this.bot.launch({
               dropPendingUpdates: true

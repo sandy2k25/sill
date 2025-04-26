@@ -1079,31 +1079,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Telegram webhook endpoint for VPS/cloud services
+  // Telegram webhook endpoint for VPS/cloud services like Koyeb
   app.post('/api/telegram-webhook', (req, res) => {
     try {
-      console.log('Received Telegram webhook request');
+      console.log('Received Telegram webhook request', {
+        hasBody: !!req.body,
+        bodyType: typeof req.body,
+        isObject: req.body && typeof req.body === 'object',
+        hasUpdateId: req.body && req.body.update_id !== undefined
+      });
+      
+      // Security check - Telegram webhook should come from Telegram servers
+      // In a real production environment, you would also validate the request IP ranges
+      // However, in a serverless environment like Koyeb, we might not have access to the original IP
+      
+      // Check if request has a valid Telegram update structure
+      if (!req.body || typeof req.body !== 'object' || req.body.update_id === undefined) {
+        console.warn('Invalid webhook request format, missing update_id');
+        return res.status(200).json({ ok: true, message: 'Invalid update format' });
+      }
       
       // If the bot is active, process the update
       if (telegramBot.isActive() && telegramBot.getBot()) {
         const bot = telegramBot.getBot()!;
         
+        // Log details about the update for debugging
+        const updateType = 
+          req.body.message ? 'message' : 
+          req.body.callback_query ? 'callback_query' : 
+          req.body.inline_query ? 'inline_query' : 
+          'unknown';
+          
+        console.log(`Processing webhook update ID ${req.body.update_id} of type ${updateType}`);
+        
         // Use the Telegraf bot instance to handle the update
         bot.handleUpdate(req.body, res)
           .then(() => {
-            // Response is already sent by handleUpdate
+            // Success - response is already sent by handleUpdate
+            console.log(`Successfully processed webhook update ${req.body.update_id}`);
           })
           .catch(err => {
             console.error('Error handling Telegram update:', err);
-            res.status(200).json({ ok: true, message: 'Error processing update' });
+            // Always return 200 to Telegram servers to avoid repeated delivery attempts
+            if (!res.headersSent) {
+              res.status(200).json({ ok: true, message: 'Error processing update' });
+            }
           });
       } else {
-        console.log('Received webhook request but bot is not active');
-        return res.status(200).json({ ok: true, message: 'Bot not active' });
+        console.log('Received webhook request but bot is not active, starting bot...');
+        
+        // Try to start the bot first
+        telegramBot.start()
+          .then(() => {
+            if (telegramBot.isActive() && telegramBot.getBot()) {
+              const bot = telegramBot.getBot()!;
+              return bot.handleUpdate(req.body, res);
+            } else {
+              throw new Error('Bot is still not active after start attempt');
+            }
+          })
+          .then(() => {
+            console.log(`Successfully processed webhook after bot start: update ${req.body.update_id}`);
+          })
+          .catch(startError => {
+            console.error('Failed to start bot or process webhook:', startError);
+            if (!res.headersSent) {
+              res.status(200).json({ ok: true, message: 'Bot could not be activated' });
+            }
+          });
       }
     } catch (error) {
-      console.error('Error in Telegram webhook:', error);
-      return res.status(200).json({ ok: true, message: 'Error processing webhook' });
+      console.error('Unhandled error in Telegram webhook:', error);
+      // Always return 200 to Telegram servers
+      if (!res.headersSent) {
+        res.status(200).json({ ok: true, message: 'Error processing webhook' });
+      }
     }
   });
   
