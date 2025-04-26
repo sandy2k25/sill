@@ -1,6 +1,89 @@
 import { Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
 import { Video } from '@shared/schema';
+import * as crypto from 'crypto';
+
+// Secret key for video URL encryption (32 bytes for AES-256)
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+// Using a random IV for each encryption
+const IV_LENGTH = 16; // For AES, this is always 16 bytes
+
+/**
+ * Encrypts a video URL for secure embedding
+ * 
+ * @param url - The original video URL to encrypt
+ * @returns An encrypted string that can only be decrypted by the server
+ */
+export function encryptVideoUrl(url: string): string {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
+  let encrypted = cipher.update(url, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  // Return IV + encrypted data as a hex string
+  return iv.toString('hex') + ':' + encrypted;
+}
+
+/**
+ * Decrypts an encrypted video URL
+ * 
+ * @param encryptedData - The encrypted video URL string
+ * @returns The original video URL
+ */
+export function decryptVideoUrl(encryptedData: string): string {
+  try {
+    const textParts = encryptedData.split(':');
+    if (textParts.length !== 2) throw new Error('Invalid encrypted format');
+    
+    const iv = Buffer.from(textParts[0], 'hex');
+    const encryptedText = textParts[1];
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
+    
+    let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted;
+  } catch (error) {
+    console.error('Failed to decrypt video URL:', error);
+    throw new Error('Invalid encrypted URL');
+  }
+}
+
+/**
+ * Generates a time-limited secure token for video access
+ * 
+ * @param videoId - The ID of the video
+ * @param expiresIn - Time in seconds until token expires (default: 2 hours)
+ * @returns A secure token with embedded expiration
+ */
+export function generateAccessToken(videoId: string, expiresIn = 7200): string {
+  const payload = {
+    videoId,
+    exp: Math.floor(Date.now() / 1000) + expiresIn
+  };
+  
+  return Buffer.from(JSON.stringify(payload)).toString('base64');
+}
+
+/**
+ * Verifies a video access token
+ * 
+ * @param token - The access token to verify
+ * @returns The videoId if valid, null if invalid or expired
+ */
+export function verifyAccessToken(token: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(token, 'base64').toString('utf8'));
+    
+    // Check if token is expired
+    if (payload.exp < Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+    
+    return payload.videoId;
+  } catch (error) {
+    return null;
+  }
+}
 
 /**
  * Verifies if the origin domain is in the whitelist

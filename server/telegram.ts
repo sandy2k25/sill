@@ -47,7 +47,7 @@ export class TelegramBot {
    */
   setVideoScraper(scraper: any) {
     videoScraperInstance = scraper;
-    console.log('VideoScraper instance set in TelegramBot');
+    console.log('WovIeX instance set in TelegramBot');
   }
   
   private initializeBot(token: string) {
@@ -113,8 +113,8 @@ export class TelegramBot {
     // Start command - shows welcome message and menu
     this.bot.command('start', async (ctx) => {
       await ctx.reply(
-        '🤖 *Video Scraper Bot*\n\n' +
-        'Welcome to the admin interface for the Video Scraper service.\n' +
+        '🤖 *WovIeX Bot*\n\n' +
+        'Welcome to the admin interface for the WovIeX service.\n' +
         'Use the commands below to manage the service:\n\n' +
         '/menu - Show this menu\n' +
         '/stats - Show system statistics\n' +
@@ -331,7 +331,7 @@ export class TelegramBot {
     this.bot.command('help', async (ctx) => {
       await ctx.reply(
         '❓ *Help Information*\n\n' +
-        'This bot allows you to manage your Video Scraper service.\n\n' +
+        'This bot allows you to manage your WovIeX service.\n\n' +
         '*Commands:*\n' +
         '/menu - Show main menu\n' +
         '/stats - Show system statistics\n' +

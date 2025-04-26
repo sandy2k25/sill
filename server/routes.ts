@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { videoScraper } from "./scraper";
 import { telegramBot } from "./telegram";
-import { verifyOrigin, getSystemStats, embedProtectionMiddleware } from "./utils";
+import { verifyOrigin, getSystemStats, embedProtectionMiddleware, encryptVideoUrl, decryptVideoUrl, generateAccessToken, verifyAccessToken } from "./utils";
 import { z } from "zod";
 import { insertDomainSchema, insertLogSchema } from "@shared/schema";
 import { authMiddleware, loginAdmin } from "./auth";
@@ -12,6 +12,70 @@ import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+  
+  // Stream endpoint for securely serving video content
+  app.get('/stream/:token', async (req, res) => {
+    const token = req.params.token;
+    const range = req.headers.range;
+    
+    try {
+      // Decrypt the token to get the video URL
+      const videoUrl = decryptVideoUrl(token);
+      
+      if (!videoUrl) {
+        return res.status(403).send('Invalid or expired video access token');
+      }
+      
+      // Fetch the video from the source with a HEAD request to get content info
+      const videoResponse = await fetch(videoUrl, { method: 'HEAD' });
+      
+      if (!videoResponse.ok) {
+        return res.status(videoResponse.status).send('Unable to access video content');
+      }
+      
+      // Get content info
+      const contentLength = Number(videoResponse.headers.get('content-length') || '0');
+      const contentType = videoResponse.headers.get('content-type') || 'video/mp4';
+      
+      // If range request, handle partial content (streaming)
+      if (range) {
+        // Parse range
+        const parts = range.replace(/bytes=/, '').split('-');
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : contentLength - 1;
+        const chunkSize = end - start + 1;
+        
+        // Fetch the proper chunk
+        const videoChunkResponse = await fetch(videoUrl, {
+          headers: {
+            Range: `bytes=${start}-${end}`
+          }
+        });
+        
+        // Ensure proper status code and headers for range requests
+        res.status(206);
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${contentLength}`);
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Content-Length', chunkSize);
+        res.setHeader('Content-Type', contentType);
+        
+        // Stream the content
+        videoChunkResponse.body.pipe(res);
+      } else {
+        // No range requested, serve the whole file
+        res.setHeader('Content-Length', contentLength);
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Accept-Ranges', 'bytes');
+        
+        // Stream the entire video
+        const fullVideoResponse = await fetch(videoUrl);
+        fullVideoResponse.body.pipe(res);
+      }
+    } catch (error) {
+      console.error('Streaming error:', error);
+      res.status(500).send('Error streaming video content');
+    }
+  });
   
   // Middleware to check origin for all API routes
   app.use('/api', async (req, res, next) => {
