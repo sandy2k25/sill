@@ -189,16 +189,18 @@ const TelegramBotStatus: React.FC = () => {
                   </p>
                   
                   {status?.botToken && status?.active && (
-                    <Alert variant="outline" className="bg-primary/5 border-primary/20">
-                      <Info className="h-4 w-4" />
-                      <AlertTitle>Bot Commands</AlertTitle>
-                      <AlertDescription className="text-xs">
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm">
+                      <div className="flex items-center gap-2 mb-1 font-medium">
+                        <Info className="h-4 w-4" />
+                        Bot Commands
+                      </div>
+                      <div className="text-xs text-muted-foreground pl-6">
                         /help - Show help<br />
                         /status - Show bot status<br />
                         /channel enable ChannelID - Enable storage<br />
                         /channel disable - Disable storage
-                      </AlertDescription>
-                    </Alert>
+                      </div>
+                    </div>
                   )}
                 </div>
                 
@@ -260,14 +262,16 @@ const TelegramBotStatus: React.FC = () => {
                   )}
                   
                   {status?.active && !status?.channelStorageEnabled && (
-                    <Alert variant="outline" className="bg-primary/5 border-primary/20">
-                      <Info className="h-4 w-4" />
-                      <AlertTitle>Channel Storage</AlertTitle>
-                      <AlertDescription className="text-xs">
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm">
+                      <div className="flex items-center gap-2 mb-1 font-medium">
+                        <Info className="h-4 w-4" />
+                        Channel Storage
+                      </div>
+                      <div className="text-xs text-muted-foreground pl-6">
                         Enable channel storage to save data to a Telegram channel. 
                         The channel ID should start with a minus sign (e.g., -1001234567890).
-                      </AlertDescription>
-                    </Alert>
+                      </div>
+                    </div>
                   )}
                 </div>
                 
