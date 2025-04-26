@@ -41,8 +41,8 @@ const TelegramBotStatus: React.FC = () => {
       setChannelId(status.channelId);
     }
     
-    // Extract bot username if token is available
-    if (status?.botToken) {
+    // Extract bot username if token is available (token could be boolean or string)
+    if (status?.botToken && typeof status.botToken === 'string') {
       // Try to fetch bot info from the API
       fetch('/api/telegram/bot/info')
         .then(response => response.json())
