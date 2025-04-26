@@ -495,23 +495,249 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!video.url) {
         console.error(`No URL found for video ${id}`);
         
-        // Instead of throwing an error, show a user-friendly error page
+        // Instead of throwing an error, show a server down animation
         return res.status(404).send(`
           <html>
             <head>
-              <title>Video Not Available</title>
+              <title>Server Down | WovIeX</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <style>
-                body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; text-align: center; }
-                .error-container { padding: 20px; border: 1px solid #f1f1f1; border-radius: 5px; }
-                .error-title { color: #e74c3c; }
-                .back-button { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 4px; }
+                * {
+                  margin: 0;
+                  padding: 0;
+                  box-sizing: border-box;
+                }
+                
+                body {
+                  font-family: Arial, sans-serif;
+                  background-color: #111;
+                  color: white;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  height: 100vh;
+                  overflow: hidden;
+                  text-align: center;
+                  padding: 20px;
+                }
+                
+                .error-container {
+                  max-width: 500px;
+                  perspective: 1000px;
+                }
+                
+                .server-animation {
+                  width: 140px;
+                  height: 200px;
+                  margin: 0 auto 40px;
+                  position: relative;
+                  transform-style: preserve-3d;
+                  animation: float 6s ease-in-out infinite;
+                }
+                
+                .server {
+                  width: 140px;
+                  height: 200px;
+                  position: absolute;
+                  background: linear-gradient(45deg, #333, #222);
+                  border-radius: 10px;
+                  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                  transform-style: preserve-3d;
+                  transform: rotateY(0deg);
+                  animation: server-shake 0.8s ease-in-out infinite;
+                }
+                
+                .server-light {
+                  position: absolute;
+                  width: 10px;
+                  height: 10px;
+                  border-radius: 50%;
+                  background-color: #ff4d4d;
+                  top: 20px;
+                  right: 20px;
+                  box-shadow: 0 0 10px #ff4d4d;
+                  animation: blink 1s infinite alternate;
+                }
+                
+                .server-light:nth-child(2) {
+                  top: 40px;
+                  background-color: #ffcc00;
+                  box-shadow: 0 0 10px #ffcc00;
+                  animation-delay: 0.2s;
+                }
+                
+                .server-light:nth-child(3) {
+                  top: 60px;
+                  background-color: #ff9933;
+                  box-shadow: 0 0 10px #ff9933;
+                  animation-delay: 0.3s;
+                }
+                
+                .server-slots {
+                  position: absolute;
+                  width: 100px;
+                  height: 15px;
+                  background-color: #111;
+                  border-radius: 3px;
+                  top: 100px;
+                  left: 20px;
+                  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+                }
+                
+                .server-slots:nth-child(5) {
+                  top: 125px;
+                }
+                
+                .server-slots:nth-child(6) {
+                  top: 150px;
+                }
+                
+                .cloud {
+                  position: absolute;
+                  width: 60px;
+                  height: 30px;
+                  background-color: rgba(255, 255, 255, 0.1);
+                  border-radius: 15px;
+                  top: -40px;
+                  left: 40px;
+                  animation: cloud-move 4s ease-in-out infinite;
+                }
+                
+                .cloud:after, .cloud:before {
+                  content: '';
+                  position: absolute;
+                  width: 25px;
+                  height: 25px;
+                  border-radius: 50%;
+                  background-color: rgba(255, 255, 255, 0.1);
+                }
+                
+                .cloud:after {
+                  top: -10px;
+                  left: 10px;
+                }
+                
+                .cloud:before {
+                  top: -5px;
+                  left: 30px;
+                }
+                
+                .lightning {
+                  position: absolute;
+                  top: -10px;
+                  left: 70px;
+                  width: 3px;
+                  height: 30px;
+                  background-color: #ffff99;
+                  transform: rotate(15deg);
+                  opacity: 0;
+                  animation: lightning 4s ease-in-out infinite;
+                  z-index: -1;
+                  box-shadow: 0 0 10px 2px #ffff99;
+                }
+                
+                .error-title {
+                  font-size: 28px;
+                  margin-bottom: 15px;
+                  color: #e5308c;
+                  text-shadow: 0 0 5px rgba(229, 48, 140, 0.5);
+                }
+                
+                .error-message {
+                  font-size: 18px;
+                  margin-bottom: 30px;
+                  opacity: 0.8;
+                  line-height: 1.6;
+                }
+                
+                .back-button {
+                  display: inline-block;
+                  padding: 10px 25px;
+                  background: linear-gradient(45deg, #e5308c, #8c30e5);
+                  color: white;
+                  text-decoration: none;
+                  border-radius: 25px;
+                  font-weight: bold;
+                  transition: transform 0.3s, box-shadow 0.3s;
+                  position: relative;
+                  overflow: hidden;
+                  box-shadow: 0 5px 15px rgba(229, 48, 140, 0.3);
+                  margin-top: 20px;
+                }
+                
+                .back-button:hover {
+                  transform: translateY(-3px);
+                  box-shadow: 0 8px 20px rgba(229, 48, 140, 0.5);
+                }
+                
+                .back-button:active {
+                  transform: translateY(1px);
+                }
+                
+                .video-id {
+                  font-family: monospace;
+                  background-color: rgba(255, 255, 255, 0.1);
+                  padding: 5px 10px;
+                  border-radius: 4px;
+                  margin: 10px 0;
+                  display: inline-block;
+                }
+                
+                @keyframes server-shake {
+                  0%, 100% { transform: rotateY(0deg) rotateZ(0deg); }
+                  25% { transform: rotateY(1deg) rotateZ(0.5deg); }
+                  75% { transform: rotateY(-1deg) rotateZ(-0.5deg); }
+                }
+                
+                @keyframes blink {
+                  0% { opacity: 0.3; }
+                  100% { opacity: 1; }
+                }
+                
+                @keyframes float {
+                  0%, 100% { transform: translateY(0); }
+                  50% { transform: translateY(-15px); }
+                }
+                
+                @keyframes cloud-move {
+                  0%, 100% { transform: translateX(0); opacity: 0.5; }
+                  50% { transform: translateX(-20px); opacity: 0.8; }
+                }
+                
+                @keyframes lightning {
+                  0%, 30%, 70%, 100% { opacity: 0; }
+                  40%, 60% { opacity: 1; }
+                }
+                
+                .logo {
+                  font-size: 24px;
+                  font-weight: bold;
+                  margin-bottom: 20px;
+                  color: #e5308c;
+                  text-shadow: 0 0 10px rgba(229, 48, 140, 0.5);
+                  letter-spacing: 1px;
+                }
               </style>
             </head>
             <body>
+              <div class="logo">WovIeX</div>
               <div class="error-container">
-                <h1 class="error-title">Video Not Available</h1>
-                <p>Sorry, we couldn't find the video you're looking for. The video may have been removed or is not available.</p>
-                <p>Video ID: ${id}, Season: ${seasonid}, Episode: ${episodeid}</p>
+                <div class="server-animation">
+                  <div class="cloud"></div>
+                  <div class="lightning"></div>
+                  <div class="server">
+                    <div class="server-light"></div>
+                    <div class="server-light"></div>
+                    <div class="server-light"></div>
+                    <div class="server-slots"></div>
+                    <div class="server-slots"></div>
+                    <div class="server-slots"></div>
+                  </div>
+                </div>
+                <h1 class="error-title">Server Down</h1>
+                <p class="error-message">Sorry, we couldn't get the video URL from the server. This could be due to server maintenance or high traffic.</p>
+                <div class="video-id">Video ID: ${id}, Season: ${seasonid}, Episode: ${episodeid}</div>
                 <p>Title: ${video.title || 'Unknown'}</p>
                 <a href="javascript:history.back()" class="back-button">Go Back</a>
               </div>
