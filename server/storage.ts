@@ -343,6 +343,6 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Use the database storage instead of memory storage
-import { dbStorage } from './dbStorage';
-export const storage = dbStorage;
+// Use the memory storage instead of database storage for Telegram only mode
+export const memStorage = new MemStorage();
+export const storage = memStorage;
