@@ -1679,6 +1679,268 @@ export async function registerRoutes(app: Express): Promise<Server> {
   } else {
     console.log('Telegram bot token not found or invalid. Bot will not start automatically.');
   }
+  
+  // Custom error page route for player errors
+  app.get('/error/player', (req, res) => {
+    const errorMessage = req.query.message || 'An unknown error occurred';
+    const videoId = req.query.id || 'unknown';
+    
+    // Log the error
+    storage.createLog({
+      level: 'ERROR',
+      source: 'Player',
+      message: `Player error for video ${videoId}: ${errorMessage}`
+    }).catch(err => console.error('Failed to log error:', err));
+    
+    // Return the server down animation
+    return res.status(500).send(`
+      <html>
+        <head>
+          <title>Server Down | WovIeX</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: Arial, sans-serif;
+              background-color: #111;
+              color: white;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              overflow: hidden;
+              text-align: center;
+              padding: 20px;
+            }
+            
+            .error-container {
+              max-width: 500px;
+              perspective: 1000px;
+            }
+            
+            .server-animation {
+              width: 140px;
+              height: 200px;
+              margin: 0 auto 40px;
+              position: relative;
+              transform-style: preserve-3d;
+              animation: float 6s ease-in-out infinite;
+            }
+            
+            .server {
+              width: 140px;
+              height: 200px;
+              position: absolute;
+              background: linear-gradient(45deg, #333, #222);
+              border-radius: 10px;
+              box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+              transform-style: preserve-3d;
+              transform: rotateY(0deg);
+              animation: server-shake 0.8s ease-in-out infinite;
+            }
+            
+            .server-light {
+              position: absolute;
+              width: 10px;
+              height: 10px;
+              border-radius: 50%;
+              background-color: #ff4d4d;
+              top: 20px;
+              right: 20px;
+              box-shadow: 0 0 10px #ff4d4d;
+              animation: blink 1s infinite alternate;
+            }
+            
+            .server-light:nth-child(2) {
+              top: 40px;
+              background-color: #ffcc00;
+              box-shadow: 0 0 10px #ffcc00;
+              animation-delay: 0.2s;
+            }
+            
+            .server-light:nth-child(3) {
+              top: 60px;
+              background-color: #ff9933;
+              box-shadow: 0 0 10px #ff9933;
+              animation-delay: 0.3s;
+            }
+            
+            .server-slots {
+              position: absolute;
+              width: 100px;
+              height: 15px;
+              background-color: #111;
+              border-radius: 3px;
+              top: 100px;
+              left: 20px;
+              box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+            }
+            
+            .server-slots:nth-child(5) {
+              top: 125px;
+            }
+            
+            .server-slots:nth-child(6) {
+              top: 150px;
+            }
+            
+            .cloud {
+              position: absolute;
+              width: 60px;
+              height: 30px;
+              background-color: rgba(255, 255, 255, 0.1);
+              border-radius: 15px;
+              top: -40px;
+              left: 40px;
+              animation: cloud-move 4s ease-in-out infinite;
+            }
+            
+            .cloud:after, .cloud:before {
+              content: '';
+              position: absolute;
+              width: 25px;
+              height: 25px;
+              border-radius: 50%;
+              background-color: rgba(255, 255, 255, 0.1);
+            }
+            
+            .cloud:after {
+              top: -10px;
+              left: 10px;
+            }
+            
+            .cloud:before {
+              top: -5px;
+              left: 30px;
+            }
+            
+            .lightning {
+              position: absolute;
+              top: -10px;
+              left: 70px;
+              width: 3px;
+              height: 30px;
+              background-color: #ffff99;
+              transform: rotate(15deg);
+              opacity: 0;
+              animation: lightning 4s ease-in-out infinite;
+              z-index: -1;
+              box-shadow: 0 0 10px 2px #ffff99;
+            }
+            
+            .error-title {
+              font-size: 28px;
+              margin-bottom: 15px;
+              color: #e5308c;
+              text-shadow: 0 0 5px rgba(229, 48, 140, 0.5);
+            }
+            
+            .error-message {
+              font-size: 18px;
+              margin-bottom: 30px;
+              opacity: 0.8;
+              line-height: 1.6;
+            }
+            
+            .back-button {
+              display: inline-block;
+              padding: 10px 25px;
+              background: linear-gradient(45deg, #e5308c, #8c30e5);
+              color: white;
+              text-decoration: none;
+              border-radius: 25px;
+              font-weight: bold;
+              transition: transform 0.3s, box-shadow 0.3s;
+              position: relative;
+              overflow: hidden;
+              box-shadow: 0 5px 15px rgba(229, 48, 140, 0.3);
+              margin-top: 20px;
+            }
+            
+            .back-button:hover {
+              transform: translateY(-3px);
+              box-shadow: 0 8px 20px rgba(229, 48, 140, 0.5);
+            }
+            
+            .back-button:active {
+              transform: translateY(1px);
+            }
+            
+            .video-id {
+              font-family: monospace;
+              background-color: rgba(255, 255, 255, 0.1);
+              padding: 5px 10px;
+              border-radius: 4px;
+              margin: 10px 0;
+              display: inline-block;
+            }
+            
+            @keyframes server-shake {
+              0%, 100% { transform: rotateY(0deg) rotateZ(0deg); }
+              25% { transform: rotateY(1deg) rotateZ(0.5deg); }
+              75% { transform: rotateY(-1deg) rotateZ(-0.5deg); }
+            }
+            
+            @keyframes blink {
+              0% { opacity: 0.3; }
+              100% { opacity: 1; }
+            }
+            
+            @keyframes float {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-15px); }
+            }
+            
+            @keyframes cloud-move {
+              0%, 100% { transform: translateX(0); opacity: 0.5; }
+              50% { transform: translateX(-20px); opacity: 0.8; }
+            }
+            
+            @keyframes lightning {
+              0%, 30%, 70%, 100% { opacity: 0; }
+              40%, 60% { opacity: 1; }
+            }
+            
+            .logo {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 20px;
+              color: #e5308c;
+              text-shadow: 0 0 10px rgba(229, 48, 140, 0.5);
+              letter-spacing: 1px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="logo">WovIeX</div>
+          <div class="error-container">
+            <div class="server-animation">
+              <div class="cloud"></div>
+              <div class="lightning"></div>
+              <div class="server">
+                <div class="server-light"></div>
+                <div class="server-light"></div>
+                <div class="server-light"></div>
+                <div class="server-slots"></div>
+                <div class="server-slots"></div>
+                <div class="server-slots"></div>
+              </div>
+            </div>
+            <h1 class="error-title">Server Down</h1>
+            <p class="error-message">Sorry, we encountered a problem with the video player. ${errorMessage}</p>
+            <div class="video-id">Video ID: ${videoId}</div>
+            <a href="javascript:history.back()" class="back-button">Go Back</a>
+          </div>
+        </body>
+      </html>
+    `);
+  });
 
   return httpServer;
 }

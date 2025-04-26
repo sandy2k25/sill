@@ -525,7 +525,15 @@
       // Error handling
       player.on('error', (event) => {
         console.error('Player error:', event);
-        showMessage('Video playback error. Try another quality option.', 5000);
+        
+        // Instead of just showing a message, redirect to a server down page
+        // We'll create a fallback first in case the redirect doesn't work
+        showMessage('Video playback error. Redirecting to error page...', 2000);
+        
+        // After a short delay, redirect to a custom error endpoint
+        setTimeout(() => {
+          window.location.href = '/error/player?message=Failed+to+play+video&id=${id}';
+        }, 2000);
       });
     });
   </script>
