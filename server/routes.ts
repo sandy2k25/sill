@@ -134,7 +134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('Template error:', templateError);
         
         // Fallback to simple player if template fails
-        return res.send(`
+        const fallbackHtml = `
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -202,7 +202,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           </script>
         </body>
         </html>
-      `);
+        `;
+        return res.send(fallbackHtml);
+      }
     } catch (error) {
       await storage.createLog({
         level: 'ERROR',
@@ -265,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('Template error:', templateError);
         
         // Fallback to simple player if template fails
-        return res.send(`
+        const fallbackHtml = `
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -332,7 +334,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           </script>
         </body>
         </html>
-      `);
+        `;
+        return res.send(fallbackHtml);
+      }
     } catch (error) {
       await storage.createLog({
         level: 'ERROR',
@@ -734,20 +738,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Telegram bot at startup if token exists
   if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN.length > 10) {
     console.log('Starting Telegram bot...');
-    telegramBot.start().then(() => {
-      // Disable channel storage for now to prevent errors
-      telegramBot.disableChannelStorage();
-      console.log('Telegram channel storage is disabled to prevent errors');
-      
-      /* Temporarily disabled to prevent errors
-      if (process.env.TELEGRAM_CHANNEL_ID) {
-        console.log('Enabling Telegram channel database with ID:', process.env.TELEGRAM_CHANNEL_ID);
-        telegramBot.enableChannelStorage(process.env.TELEGRAM_CHANNEL_ID);
-      }
-      */
-    }).catch(error => {
-      console.error('Failed to start Telegram bot:', error);
-    });
+    try {
+      // Using async/await pattern with immediate function execution
+      (async () => {
+        try {
+          await telegramBot.start();
+          // Disable channel storage for now to prevent errors
+          telegramBot.disableChannelStorage();
+          console.log('Telegram channel storage is disabled to prevent errors');
+          
+          /* Temporarily disabled to prevent errors
+          if (process.env.TELEGRAM_CHANNEL_ID) {
+            console.log('Enabling Telegram channel database with ID:', process.env.TELEGRAM_CHANNEL_ID);
+            telegramBot.enableChannelStorage(process.env.TELEGRAM_CHANNEL_ID);
+          }
+          */
+        } catch (error) {
+          console.error('Failed to start Telegram bot:', error);
+        }
+      })();
+    } catch (error) {
+      console.error('Error executing Telegram bot startup:', error);
+    }
   } else {
     console.log('Telegram bot token not found or invalid. Bot will not start automatically.');
   }
