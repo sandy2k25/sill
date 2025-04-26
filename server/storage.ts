@@ -260,9 +260,19 @@ export class MemStorage implements IStorage {
   }
   
   async isDomainWhitelisted(domain: string): Promise<boolean> {
-    // Domain restriction has been disabled - always return true regardless of domain
-    // This allows embedding the player on any site without restrictions
-    return true;
+    // Special case: localhost and replit.dev domains are always whitelisted for development
+    if (domain === 'localhost' || domain.endsWith('.replit.dev') || domain.endsWith('.repl.co')) {
+      return true;
+    }
+
+    // Check if the domain exists in the whitelist and is active
+    for (const [_, whitelistedDomain] of this.domains) {
+      if (whitelistedDomain.domain === domain && whitelistedDomain.active) {
+        return true;
+      }
+    }
+    
+    return false;
   }
   
   // Log methods
