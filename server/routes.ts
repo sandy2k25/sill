@@ -257,9 +257,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const templatePath = path.join(process.cwd(), 'player_template.html');
         let playerTemplate = fs.readFileSync(templatePath, 'utf8');
         
+        // Add season and episode to the title for this route
+        const seasonEpisodeInfo = ` S${seasonid} E${episodeid}`;
+        const titleWithSeasonEp = video.title ? `${video.title}${seasonEpisodeInfo}` : `Video Player${seasonEpisodeInfo}`;
+        
         // Replace variables in the template
         playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, video.url);
-        playerTemplate = playerTemplate.replace(/\$\{video\.title[^}]*\}/g, video.title || 'Video Player');
+        playerTemplate = playerTemplate.replace(/\$\{video\.title[^}]*\}/g, titleWithSeasonEp);
         playerTemplate = playerTemplate.replace(/\$\{video\.quality[^}]*\}/g, video.quality || 'HD');
         
         return res.send(playerTemplate);

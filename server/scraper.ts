@@ -60,9 +60,9 @@ const mockPuppeteer = {
 const puppeteer = isReplitEnvironment ? mockPuppeteer : require('puppeteer');
 
 /**
- * The VideoScraper class handles scraping video URLs from letsembed.cc
+ * The WovIeX class handles scraping video URLs from letsembed.cc
  */
-export class VideoScraper {
+export class WovIeX {
   private browser: Browser | null = null;
   private storage: any = null;
   private settings = {
@@ -959,4 +959,4 @@ export class VideoScraper {
   }
 }
 
-export const videoScraper = new VideoScraper();
+export const videoScraper = new WovIeX();
