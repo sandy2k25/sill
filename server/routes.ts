@@ -299,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           </style>
         </head>
         <body>
-          <div class="wovie-logo">WovIe Player</div>
+          <div class="wovie-logo">WovIeX</div>
           <video id="player" playsinline controls>
             <source src="${streamUrl}" type="video/mp4">
           </video>
@@ -442,7 +442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           </style>
         </head>
         <body>
-          <div class="wovie-logo">WovIe Player</div>
+          <div class="wovie-logo">WovIeX</div>
           <video id="player" playsinline controls>
             <source src="${streamUrl}" type="video/mp4">
           </video>
