@@ -758,8 +758,16 @@ export class TelegramBot {
           
           // If channel ID is set, enable storage
           if (this.channelStorage.channelId) {
-            this.enableChannelStorage(this.channelStorage.channelId);
-            console.log(`Channel storage enabled with ID: ${this.channelStorage.channelId}`);
+            // Use async/await within an IIFE
+            (async () => {
+              try {
+                console.log(`Trying to enable channel storage with ID: ${this.channelStorage.channelId}`);
+                const success = await this.enableChannelStorage(this.channelStorage.channelId);
+                console.log(`Channel storage ${success ? 'successfully enabled' : 'failed to enable'} with ID: ${this.channelStorage.channelId}`);
+              } catch (error) {
+                console.error('Error enabling channel storage on bot start:', error);
+              }
+            })();
           }
           
           return;
@@ -910,7 +918,8 @@ export class TelegramBot {
           { disable_notification: true }
         );
         console.log('Test message sent successfully to channel');
-      } catch (error) {
+      } catch (err) {
+        const error = err as Error;
         console.error('Failed to send test message to channel:', error);
         console.error('This usually indicates an invalid channel ID or the bot not having access to the channel');
         

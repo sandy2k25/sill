@@ -992,7 +992,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // If channel ID is provided as environment variable, enable channel storage
           if (process.env.TELEGRAM_CHANNEL_ID) {
             console.log('Enabling Telegram channel database with ID:', process.env.TELEGRAM_CHANNEL_ID);
-            telegramBot.enableChannelStorage(process.env.TELEGRAM_CHANNEL_ID);
+            (async () => {
+              try {
+                // Wait a moment for the bot to fully initialize before enabling channel storage
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                console.log('Attempting to enable channel storage from environment variable...');
+                const success = await telegramBot.enableChannelStorage(process.env.TELEGRAM_CHANNEL_ID);
+                
+                if (success) {
+                  console.log('Successfully enabled channel storage from environment variable');
+                } else {
+                  console.error('Failed to enable channel storage from environment variable');
+                }
+              } catch (error) {
+                console.error('Error enabling channel storage from environment variable:', error);
+              }
+            })();
           } else {
             console.log('Telegram channel storage is disabled. Configure through admin panel.');
           }
