@@ -416,8 +416,61 @@ export class TelegramBot {
           
           if (action === 'enable' && args.length >= 3) {
             const channelId = args[2];
-            this.enableChannelStorage(channelId);
-            await ctx.reply(`✅ Channel storage enabled with ID: ${channelId}`);
+            
+            // Validate the channel ID format
+            if (!channelId.startsWith('-') || !/^-\d+$/.test(channelId)) {
+              await ctx.reply('❌ Invalid channel ID format. Channel ID should start with "-" followed by numbers (e.g., -1001234567890)');
+              return;
+            }
+            
+            try {
+              // First, try to validate the channel by sending a test message
+              try {
+                if (!this.bot) {
+                  throw new Error('Bot instance not available');
+                }
+                
+                await this.bot.telegram.sendMessage(
+                  channelId, 
+                  'CHANNEL_TEST: Testing channel access...',
+                  { disable_notification: true }
+                );
+                
+                // If we get here, the message was sent successfully
+                console.log(`Successfully sent test message to channel ${channelId}`);
+              } catch (error) {
+                const channelError = error as Error;
+                console.error(`Failed to send test message to channel ${channelId}:`, channelError);
+                await ctx.reply(`❌ Could not access channel with ID ${channelId}. Make sure:\n\n1. The channel ID is correct\n2. The bot is a member of the channel\n3. The bot has permission to send messages\n\nError: ${channelError.message}`);
+                return;
+              }
+              
+              // If we reach here, we can successfully message the channel
+              this.enableChannelStorage(channelId);
+              
+              // Verify it was enabled
+              if (!this.isChannelStorageEnabled()) {
+                await ctx.reply('❌ Failed to enable channel storage due to an internal error');
+                return;
+              }
+              
+              // Send a success message to the channel
+              if (!this.bot) {
+                throw new Error('Bot instance not available');
+              }
+              
+              await this.bot.telegram.sendMessage(
+                channelId,
+                '✅ CHANNEL STORAGE ENABLED: This channel will now be used for database storage.',
+                { disable_notification: true }
+              );
+              
+              await ctx.reply(`✅ Channel storage successfully enabled with ID: ${channelId}`);
+            } catch (error) {
+              const err = error as Error;
+              console.error('Error enabling channel storage via bot command:', err);
+              await ctx.reply(`❌ Error enabling channel storage: ${err.message}`);
+            }
             return;
           } else if (action === 'disable') {
             this.disableChannelStorage();
@@ -428,6 +481,10 @@ export class TelegramBot {
               ? `✅ Enabled (ID: ${this.channelStorage.channelId})` 
               : '❌ Disabled';
             await ctx.reply(`Channel storage status: ${status}`);
+            return;
+          } else {
+            // Invalid command format
+            await ctx.reply('❓ Invalid channel command. Use:\n/channel enable <channelId>\n/channel disable\n/channel status');
             return;
           }
         }

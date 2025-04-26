@@ -43,21 +43,23 @@ const TelegramBotStatus: React.FC = () => {
     
     // Extract bot username if token is available
     if (status?.botToken) {
-      const tokenParts = status.botToken.split(':');
-      if (tokenParts.length === 2) {
-        // Try to fetch bot info from the API
-        fetch('/api/telegram/bot/info')
-          .then(response => response.json())
-          .then(data => {
-            if (data.success && data.username) {
-              setBotUsername(data.username);
-            }
-          })
-          .catch(error => {
-            console.error('Failed to fetch bot username:', error);
-            // Fallback to a placeholder
-            setBotUsername('your_bot');
-          });
+      // Try to fetch bot info from the API
+      fetch('/api/telegram/bot/info')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.username) {
+            setBotUsername(data.username);
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch bot username:', error);
+          // Fallback to a placeholder
+          setBotUsername('your_bot');
+        });
+      
+      // Set fallback username if we can't get it from API
+      if (!botUsername) {
+        setBotUsername('your_bot');
       }
     }
   }, [status]);
