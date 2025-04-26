@@ -152,6 +152,22 @@ export async function verifyOrigin(req: Request): Promise<boolean> {
  * Middleware to enforce Content-Security-Policy and other headers for embed protection
  */
 export function embedProtectionMiddleware(req: Request, res: Response, next: NextFunction) {
+  // First, check if the request comes from iframetester.com
+  const referer = req.get('referer');
+  const origin = req.get('origin');
+
+  // Special case for iframetester.com - always allow iframe embedding
+  if (referer && referer.includes('iframetester.com') || 
+      origin && origin.includes('iframetester.com')) {
+    console.log("Allowing embedding from iframetester.com");
+    // Set headers to specifically allow iframetester.com
+    res.setHeader('X-Frame-Options', 'ALLOW-FROM https://iframetester.com');
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://iframetester.com https://*.iframetester.com");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    next();
+    return;
+  }
+  
   // Set strict security headers to prevent embedding on non-whitelisted domains
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");

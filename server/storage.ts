@@ -266,13 +266,10 @@ export class MemStorage implements IStorage {
     }
 
     // Check if the domain exists in the whitelist and is active
-    for (const [_, whitelistedDomain] of this.domains) {
-      if (whitelistedDomain.domain === domain && whitelistedDomain.active) {
-        return true;
-      }
-    }
-    
-    return false;
+    const domains = Array.from(this.domains.values());
+    return domains.some(whitelistedDomain => 
+      whitelistedDomain.domain === domain && whitelistedDomain.active
+    );
   }
   
   // Log methods
