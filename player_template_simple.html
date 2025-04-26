@@ -17,7 +17,22 @@
     .plyr {
       height: 100%;
       --plyr-color-main: #e5308c; /* Custom brand color */
+      --plyr-video-controls-background: rgba(0, 0, 0, 0.8); /* Darker control background */
+      --plyr-control-spacing: 12px; /* More space between controls */
+      --plyr-control-icon-size: 18px; /* Slightly larger icons */
+      --plyr-menu-background: rgba(0, 0, 0, 0.9); /* Darker menu background */
+      --plyr-menu-color: #fff; /* White text in menus */
+      --plyr-menu-radius: 6px; /* Rounded menu corners */
+      --plyr-control-radius: 6px; /* Rounded control corners */
     }
+    
+    /* Ensure controls are always visible */
+    .plyr--video.plyr--hide-controls .plyr__controls {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      transform: none !important;
+    }
+    
     video {
       width: 100%;
       height: 100%;
@@ -115,11 +130,16 @@
 <body>
   <div class="wovie-logo">WovIeX</div>
   <div class="video-title">${video.title || 'Video Player'}</div>
-  <div id="qualityIndicator" class="quality-indicator">Auto</div>
+  <div id="qualityIndicator" class="quality-indicator">${video.selectedQuality ? video.selectedQuality.label : 'Auto'}</div>
   <video id="player" playsinline controls>
     <source src="${video.url}" type="video/mp4">
+    ${video.subtitleOptions && video.subtitleOptions.length ? 
+      video.subtitleOptions.map((sub, index) => 
+        `<track kind="captions" label="${sub.label || 'Unknown'}" srclang="${sub.language || 'en'}" src="${sub.url}" ${index === 0 ? 'default' : ''}>`
+      ).join('\n    ') 
+      : '<!-- No subtitles available -->'}
   </video>
-  <!-- Subtitles will be handled through Plyr settings menu -->
+  <!-- Message container for player notifications -->
   <div id="message" class="player-message"></div>
   
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
@@ -175,16 +195,33 @@
         });
       }
       
-      // Keep original URLs as they have unique security parameters for each quality option
-      // Just log for debugging if any URL is missing required security parameters
+      // Process URLs to ensure all security parameters are preserved
       qualityOptions = qualityOptions.map(opt => {
         if (opt.url) {
+          // Check for common security parameters in CDN URLs
           const hasExpires = opt.url.includes('Expires=') || opt.url.includes('expires=');
           const hasSignature = opt.url.includes('Signature=') || opt.url.includes('signature=');
+          const hasKeyPair = opt.url.includes('Key-Pair-Id=');
           const hasKeyName = opt.url.includes('KeyName=');
           
-          if (!hasExpires || !hasSignature || !hasKeyName) {
-            console.log('Quality option may have missing security parameters:', opt.label);
+          // Log any potential issues with parameters
+          if (!hasExpires) {
+            console.log(`[${opt.label}] Missing Expires parameter`);
+          }
+          
+          if (!hasSignature) {
+            console.log(`[${opt.label}] Missing Signature parameter`);
+          }
+          
+          if (!hasKeyPair && !hasKeyName) {
+            console.log(`[${opt.label}] Missing Key-Pair-Id or KeyName parameter`);
+          }
+          
+          // Fix common encoding issues in URLs that might break playback
+          // Replace encoded ampersands if they somehow got into the URL
+          if (opt.url.includes('&amp;')) {
+            console.log(`[${opt.label}] Fixing encoded ampersands in URL`);
+            opt.url = opt.url.replace(/&amp;/g, '&');
           }
         }
         return opt;
@@ -260,49 +297,75 @@
           'settings', 'pip', 'airplay', 'fullscreen'
         ],
         settings: ['captions', 'quality', 'speed', 'loop'],
+        resetOnEnd: false,
+        hideControls: false, // Keep controls visible at all times
+        clickToPlay: true,
+        displayDuration: true,
         quality: {
           default: defaultQuality,
           options: qualities.map(q => q.index),
           forced: true,
           onChange: function(newQuality) {
-            // Store the current time and playing state
-            const currentTime = player.currentTime;
-            const wasPlaying = !player.paused;
-            
-            // Get the selected quality details
-            const selectedQuality = qualities.find(q => q.index === newQuality);
-            
-            // Show message to user
-            showMessage(`Switching to ${selectedQuality.label}...`);
-            
-            // Update the quality indicator in the top-left corner
-            qualityIndicator.textContent = selectedQuality.label;
-            
-            // Update the source directly
-            player.source = {
-              type: 'video',
-              sources: [{
-                src: selectedQuality.url,
-                type: 'video/mp4'
-              }]
-            };
-            
-            // Save preference
-            localStorage.setItem('wovie_preferred_quality', selectedQuality.url);
-            
-            // Handle restoration of time and play state
-            player.once('canplay', () => {
-              if (currentTime > 0) {
-                player.currentTime = currentTime;
+            try {
+              // Store the current time and playing state
+              const currentTime = player.currentTime;
+              const wasPlaying = !player.paused;
+              
+              // Get the selected quality details
+              const selectedQuality = qualities.find(q => q.index === newQuality);
+              if (!selectedQuality) {
+                console.error('Failed to find quality with index:', newQuality);
+                return;
               }
               
-              if (wasPlaying) {
-                player.play().catch(e => {
-                  console.error('Failed to resume playback:', e);
-                  showMessage('Click to play');
-                });
+              // Show message to user
+              showMessage(`Switching to ${selectedQuality.label}...`);
+              
+              // Update the quality indicator in the top-left corner
+              qualityIndicator.textContent = selectedQuality.label;
+              
+              // Get the current URL from the player
+              const currentUrl = playerElement.querySelector('source').src;
+              console.log('Current URL:', currentUrl);
+              console.log('New URL:', selectedQuality.url);
+              
+              // Only update if the URL is different
+              if (currentUrl !== selectedQuality.url) {
+                console.log('Changing video source...');
+                
+                // Alternative direct method:
+                const videoSource = playerElement.querySelector('source');
+                videoSource.src = selectedQuality.url;
+                
+                // Force reload of the video element
+                playerElement.load();
+                
+                // Save preference
+                localStorage.setItem('wovie_preferred_quality', selectedQuality.url);
+                
+                // Handle restoration of time and play state
+                playerElement.addEventListener('loadeddata', function onLoaded() {
+                  console.log('Video loaded, restoring position:', currentTime);
+                  playerElement.removeEventListener('loadeddata', onLoaded);
+                  
+                  if (currentTime > 0) {
+                    playerElement.currentTime = currentTime;
+                  }
+                  
+                  if (wasPlaying) {
+                    playerElement.play().catch(e => {
+                      console.error('Failed to resume playback:', e);
+                      showMessage('Click to play');
+                    });
+                  }
+                }, { once: true });
+              } else {
+                console.log('URL already set to this quality, no change needed');
               }
-            });
+            } catch (err) {
+              console.error('Error during quality change:', err);
+              showMessage('Error changing quality. Please try again.');
+            }
           }
         },
         // Add custom labels to the quality menu
@@ -341,15 +404,32 @@
         if (subtitleOptions.length > 0) {
           // Add tracks directly to the video element for Plyr to pick up
           subtitleOptions.forEach((opt, index) => {
-            // Keep original subtitle URLs as they have unique security parameters
-            // Just log for debugging if any URL is missing required security parameters
+            // Process subtitle URLs to ensure all security parameters are preserved
             if (opt.url) {
+              // Check for common security parameters in CDN URLs
               const hasExpires = opt.url.includes('Expires=') || opt.url.includes('expires=');
               const hasSignature = opt.url.includes('Signature=') || opt.url.includes('signature=');
+              const hasKeyPair = opt.url.includes('Key-Pair-Id=');
               const hasKeyName = opt.url.includes('KeyName=');
               
-              if (!hasExpires || !hasSignature || !hasKeyName) {
-                console.log('Subtitle option may have missing security parameters:', opt.label);
+              // Log any potential issues with parameters
+              if (!hasExpires) {
+                console.log(`[${opt.label}] Subtitle missing Expires parameter`);
+              }
+              
+              if (!hasSignature) {
+                console.log(`[${opt.label}] Subtitle missing Signature parameter`);
+              }
+              
+              if (!hasKeyPair && !hasKeyName) {
+                console.log(`[${opt.label}] Subtitle missing Key-Pair-Id or KeyName parameter`);
+              }
+              
+              // Fix common encoding issues in URLs that might break playback
+              // Replace encoded ampersands if they somehow got into the URL
+              if (opt.url.includes('&amp;')) {
+                console.log(`[${opt.label}] Fixing encoded ampersands in subtitle URL`);
+                opt.url = opt.url.replace(/&amp;/g, '&');
               }
             }
             
@@ -376,6 +456,16 @@
       
       // Auto-play when loaded
       player.on('ready', () => {
+        console.log('Player ready, attempting auto-play');
+        
+        // Force controls to be visible
+        const controlsElement = document.querySelector('.plyr__controls');
+        if (controlsElement) {
+          controlsElement.style.opacity = "1";
+          controlsElement.style.pointerEvents = "auto";
+          controlsElement.style.transform = "none";
+        }
+        
         // Try to play automatically
         player.play().catch(error => {
           console.log('Auto-play was prevented:', error);
@@ -387,6 +477,19 @@
           // Captions will be automatically applied through the track's default attribute
           console.log('Saved subtitle preference will be applied:', savedSubtitle);
         }
+      });
+      
+      // Add this to ensure controls remain visible
+      player.on('playing', () => {
+        console.log('Playback started, ensuring controls remain visible');
+        setTimeout(() => {
+          const controlsElement = document.querySelector('.plyr__controls');
+          if (controlsElement) {
+            controlsElement.style.opacity = "1";
+            controlsElement.style.pointerEvents = "auto";
+            controlsElement.style.transform = "none";
+          }
+        }, 1000);
       });
       
       // Error handling
