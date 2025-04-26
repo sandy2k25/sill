@@ -572,8 +572,55 @@ export class WovIeX {
             if (downloadFrameMatch) {
               logInfo('Scraper', `Found downloadFrame setup, extracting from videoSelect`);
               
-              // Get first value from videoSelect if we haven't parsed quality options yet
-              if (this._lastQualityOptions.length === 0) {
+              // Extract all videoSelect options to get the full download links
+              const videoSelectRegex = /<select[^>]*id=["']videoSelect["'][^>]*>([\s\S]*?)<\/select>/i;
+              const videoSelectMatch = embedHtml.match(videoSelectRegex);
+              
+              if (videoSelectMatch && videoSelectMatch[1]) {
+                const selectContent = videoSelectMatch[1];
+                const optionRegex = /<option[^>]*value=["']([^"']+)["'][^>]*>\s*([^<]*?)\s*<\/option>/gi;
+                let optionMatch;
+                const qualityOptions = [];
+                
+                while ((optionMatch = optionRegex.exec(selectContent)) !== null) {
+                  // Decode HTML entities in the URL (e.g., &amp; -> &)
+                  const url = optionMatch[1].replace(/&amp;/g, '&')
+                                         .replace(/&lt;/g, '<')
+                                         .replace(/&gt;/g, '>')
+                                         .replace(/&quot;/g, '"')
+                                         .replace(/&#039;/g, "'");
+                  const label = optionMatch[2].trim();
+                  
+                  if (url && label) {
+                    qualityOptions.push({
+                      label,
+                      url
+                    });
+                    logInfo('Scraper', `Found download link for ${label}: ${url.substring(0, 50)}...`);
+                  }
+                }
+                
+                if (qualityOptions.length > 0) {
+                  // Sort by quality (try to get highest)
+                  qualityOptions.sort((a, b) => {
+                    const aNum = parseInt(a.label.replace(/[^\d]/g, '')) || 0;
+                    const bNum = parseInt(b.label.replace(/[^\d]/g, '')) || 0;
+                    return bNum - aNum;
+                  });
+                  
+                  // Store all quality options for later use
+                  this._lastQualityOptions = qualityOptions;
+                  
+                  // Use highest quality for main video URL
+                  videoUrl = qualityOptions[0].url;
+                  logInfo('Scraper', `Using highest quality download link: ${videoUrl.substring(0, 50)}...`);
+                }
+              } else if (this._lastQualityOptions.length > 0) {
+                // Use highest quality from already parsed options
+                videoUrl = this._lastQualityOptions[0].url;
+                logInfo('Scraper', `Using highest quality from parsed options: ${videoUrl.substring(0, 50)}...`);
+              } else {
+                // Fallback to basic option extraction if we can't find the select element
                 const videoSelectValueMatch = embedHtml.match(/<option[^>]*value=["']([^"']+)["'][^>]*>/i);
                 if (videoSelectValueMatch && videoSelectValueMatch[1]) {
                   // Decode HTML entities in the URL (e.g., &amp; -> &)
@@ -584,10 +631,6 @@ export class WovIeX {
                                                    .replace(/&#039;/g, "'");
                   logInfo('Scraper', `Found videoSelect first value as URL: ${videoUrl.substring(0, 50)}...`);
                 }
-              } else {
-                // Use highest quality from already parsed options
-                videoUrl = this._lastQualityOptions[0].url;
-                logInfo('Scraper', `Using highest quality from parsed options: ${videoUrl.substring(0, 50)}...`);
               }
             }
           }
