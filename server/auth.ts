@@ -27,24 +27,10 @@ export async function loginAdmin(req: Request, res: Response) {
       });
     }
 
-    // Check if environment variable is set
-    const webAdminPassword = process.env.WEB_ADMIN_PASSWORD;
+    // Check if environment variable is set (try both WEB_ADMIN_PASSWORD and ADMIN_PASSWORD)
+    const webAdminPassword = process.env.WEB_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
     
-    console.log('Debug - WEB_ADMIN_PASSWORD exists:', !!webAdminPassword);
-    if (webAdminPassword) {
-      console.log('Debug - WEB_ADMIN_PASSWORD length:', webAdminPassword.length);
-      // Debug: print the actual char codes to diagnose potential whitespace issues
-      const pwdCodes = [];
-      const inputCodes = [];
-      for (let i = 0; i < webAdminPassword.length; i++) {
-        pwdCodes.push(webAdminPassword.charCodeAt(i));
-      }
-      for (let i = 0; i < password.length; i++) {
-        inputCodes.push(password.charCodeAt(i));
-      }
-      console.log('Debug - WEB_ADMIN_PASSWORD char codes:', pwdCodes);
-      console.log('Debug - Input password char codes:', inputCodes);
-    }
+    console.log('Debug - Admin password environment variable exists:', !!webAdminPassword);
     
     let isMatch = false;
     
@@ -56,7 +42,6 @@ export async function loginAdmin(req: Request, res: Response) {
       // Direct comparison with plaintext password from environment
       isMatch = trimmedInputPassword === trimmedEnvPassword;
       console.log(`Checking password against environment variable (match: ${isMatch})`);
-      console.log(`Provided password: "${password}", stored password: "${webAdminPassword}"`);
     } else {
       // Fallback to hash comparison
       isMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
