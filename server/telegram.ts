@@ -1630,61 +1630,86 @@ export class TelegramBot {
     console.log('Bot running:', this.isRunning);
     
     try {
-      // Validate the channel ID format if one is provided
-      if (channelId) {
-        console.log('Processing provided channel ID:', channelId);
-        // Channel IDs should start with a negative sign and contain numbers
-        if (!channelId.startsWith('-') || !/^-\d+$/.test(channelId)) {
-          console.error(`Invalid channel ID format: ${channelId}. Channel IDs should start with '-' followed by numbers.`);
+      // If bot is not running, try to start it
+      if (!this.isRunning || !this.bot) {
+        console.log('Bot not running. Attempting to start bot before enabling channel storage...');
+        try {
+          await this.start();
+          console.log('Bot started successfully. Continuing with channel storage setup.');
+        } catch (err) {
+          console.error('Failed to start bot for channel storage:', err);
+          
+          if (storageInstance) {
+            storageInstance.createLog({
+              level: 'ERROR',
+              source: 'Telegram',
+              message: `Failed to start bot for channel storage: ${err instanceof Error ? err.message : String(err)}`
+            });
+          }
           return false;
         }
-        this.channelStorage.channelId = channelId;
-        console.log('Channel ID set to:', this.channelStorage.channelId);
-      } else if (process.env.TELEGRAM_CHANNEL_ID) {
-        // Try to use the environment variable if available
-        const envChannelId = process.env.TELEGRAM_CHANNEL_ID;
-        console.log('Using channel ID from environment variable:', envChannelId);
-        if (!envChannelId.startsWith('-') || !/^-\d+$/.test(envChannelId)) {
-          console.error(`Invalid channel ID format in environment variable: ${envChannelId}`);
-          return false;
-        }
-        this.channelStorage.channelId = envChannelId;
-        console.log('Channel ID set from environment to:', this.channelStorage.channelId);
       }
       
-      // Check if we have a valid channel ID after all attempts
-      if (!this.channelStorage.channelId) {
+      // Format and validate the channel ID
+      let formattedChannelId: string;
+      
+      if (channelId) {
+        // Format the provided ID properly
+        formattedChannelId = this.formatChannelId(channelId);
+        console.log('Processing provided channel ID:', channelId);
+        console.log('Formatted as:', formattedChannelId);
+        
+        this.channelStorage.channelId = formattedChannelId;
+      } else if (process.env.TELEGRAM_CHANNEL_ID) {
+        // Format ID from environment variable if available
+        const envChannelId = process.env.TELEGRAM_CHANNEL_ID;
+        formattedChannelId = this.formatChannelId(envChannelId);
+        console.log('Using channel ID from environment variable:', envChannelId);
+        console.log('Formatted as:', formattedChannelId);
+        
+        this.channelStorage.channelId = formattedChannelId;
+      } else {
+        // No channel ID available
         console.error('Cannot enable channel storage: No channel ID provided and none stored');
         return false;
       }
       
-      // Check if bot is available
-      if (!this.bot) {
-        console.error('Cannot enable channel storage: Bot instance not available');
-        return false;
-      }
-      
-      // Check if bot is running
-      if (!this.isRunning) {
-        console.error('Cannot enable channel storage: Bot is not running');
-        return false;
-      }
-      
-      // Try to verify channel access with a test message before enabling
+      // Verify channel access with a test message before enabling
       try {
-        console.log('Sending test message to verify channel access:', this.channelStorage.channelId);
-        await this.bot.telegram.sendMessage(
-          this.channelStorage.channelId, 
-          'CHANNEL_STORAGE_TEST: Verifying channel access...',
-          { disable_notification: true }
-        );
-        console.log('Test message sent successfully to channel');
+        if (!this.bot) {
+          console.error('Bot instance not available even after start attempt');
+          return false;
+        }
+        
+        console.log('Verifying channel access by sending test message to:', this.channelStorage.channelId);
+        
+        // Try to verify channel access
+        const verificationResult = await this.verifyChannelAccess(this.channelStorage.channelId);
+        
+        if (!verificationResult.valid) {
+          console.error('Channel verification failed:', verificationResult.message);
+          
+          if (storageInstance) {
+            storageInstance.createLog({
+              level: 'ERROR',
+              source: 'Telegram',
+              message: `Channel verification failed: ${verificationResult.message}`
+            });
+          }
+          return false;
+        }
+        
+        // If verification returned a corrected ID, update it
+        if (verificationResult.correctedId) {
+          console.log('Using corrected channel ID:', verificationResult.correctedId);
+          this.channelStorage.channelId = verificationResult.correctedId;
+        }
+        
+        console.log('Channel verification successful');
       } catch (err) {
         const error = err as Error;
-        console.error('Failed to send test message to channel:', error);
-        console.error('This usually indicates an invalid channel ID or the bot not having access to the channel');
+        console.error('Failed to verify channel access:', error);
         
-        // Log the error
         if (storageInstance) {
           storageInstance.createLog({
             level: 'ERROR',
@@ -1705,7 +1730,7 @@ export class TelegramBot {
         'with channel ID:', this.channelStorage.channelId || 'none');
       
       // Send confirmation message to the channel
-      if (isEnabled) {
+      if (isEnabled && this.bot) {
         try {
           await this.bot.telegram.sendMessage(
             this.channelStorage.channelId, 
@@ -1729,9 +1754,18 @@ export class TelegramBot {
         }
       }
       
-      return false;
+      return isEnabled;
     } catch (error) {
       console.error('Unexpected error enabling channel storage:', error);
+      
+      if (storageInstance) {
+        storageInstance.createLog({
+          level: 'ERROR',
+          source: 'Telegram',
+          message: `Unexpected error enabling channel storage: ${error instanceof Error ? error.message : String(error)}`
+        });
+      }
+      
       return false;
     }
   }
@@ -1755,11 +1789,7 @@ export class TelegramBot {
       isChannelStorageEnabled: this.isChannelStorageEnabled()
     });
 
-    if (!this.bot || !this.isRunning) {
-      console.log('Telegram bot not available - not saving data for key:', key);
-      return false;
-    }
-    
+    // Check if storage is enabled
     if (!this.isChannelStorageEnabled()) {
       console.log('Telegram channel storage is disabled - not saving data for key:', key);
       return false;
@@ -1767,6 +1797,12 @@ export class TelegramBot {
     
     if (!this.channelStorage.channelId) {
       console.log('No channel ID configured - not saving data for key:', key);
+      return false;
+    }
+    
+    // Don't try to auto-start the bot during a save - this creates circular dependencies
+    if (!this.bot || !this.isRunning) {
+      console.log('Telegram bot not running - not saving data for key:', key);
       return false;
     }
     
