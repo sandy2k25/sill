@@ -117,29 +117,7 @@
     .quality-selector select:focus {
       border-color: rgba(229, 48, 140, 1);
     }
-    .subtitle-selector {
-      position: absolute;
-      top: 80px;
-      left: 10px;
-      z-index: 99;
-      display: none;
-    }
-    .player-container:hover .subtitle-selector {
-      display: block;
-    }
-    .subtitle-selector select {
-      background-color: rgba(0, 0, 0, 0.7);
-      color: white;
-      border: 1px solid rgba(229, 48, 140, 0.8);
-      border-radius: 4px;
-      padding: 5px;
-      font-size: 12px;
-      font-family: Arial, sans-serif;
-      outline: none;
-    }
-    .subtitle-selector select:focus {
-      border-color: rgba(229, 48, 140, 1);
-    }
+    /* Subtitle selector has been removed, now using Plyr's built-in subtitle controls */
     .shortcuts-info {
       position: absolute;
       bottom: 55px;
@@ -184,12 +162,7 @@
         ${video.qualityOptions ? video.qualityOptions.map(opt => `<option value="${opt.url}">${opt.label}</option>`).join('') : ''}
       </select>
     </div>
-    <div class="subtitle-selector">
-      <select id="subtitleSelect">
-        <option value="">No Subtitle</option>
-        ${video.subtitleOptions ? video.subtitleOptions.map(opt => `<option value="${opt.url}" data-lang="${opt.language}">${opt.label}</option>`).join('') : ''}
-      </select>
-    </div>
+    <!-- Removed separate subtitle selector as it's now in the settings menu -->
     <div class="video-title">${video.title || 'Video Player'}</div>
     <div class="player-controls-overlay"></div>
     <div class="shortcuts-info">
@@ -199,7 +172,8 @@
       M - Mute<br>
       ← → - Seek 10s<br>
       ↑ ↓ - Volume<br>
-      Q - Quality
+      Q - Quality<br>
+      S - Subtitle
     </div>
     <div class="player-message" id="playerMessage"></div>
     <video id="player" playsinline controls>
@@ -230,6 +204,21 @@
       // Create custom speed options
       const speeds = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
       
+      // Prepare subtitle tracks
+      const subtitleTracks = [];
+      ${video.subtitleOptions ? `
+      // Add subtitle tracks from the video data
+      ${video.subtitleOptions}.forEach(subtitle => {
+        subtitleTracks.push({
+          kind: 'subtitles',
+          label: subtitle.label,
+          srclang: subtitle.language || 'en',
+          src: subtitle.url,
+          default: subtitle.language === 'en' // Make English the default if available
+        });
+      });
+      ` : ''}
+
       // Initialize player with advanced options
       const player = new Plyr('#player', {
         fullscreen: { enabled: true, fallback: true, iosNative: true },
@@ -244,7 +233,8 @@
         tooltips: { controls: true, seek: true },
         seekTime: 10,
         disableContextMenu: false,
-        invertTime: false
+        invertTime: false,
+        captions: { active: true, language: 'auto', update: true }
       });
       
       // Handle quality selection
@@ -259,12 +249,18 @@
           const qualityLabel = selectedOption.text;
           
           // Update player source
+          // Save current subtitle status
+          const currentTrackMode = player.media.textTracks.length > 0 ? 
+            [...player.media.textTracks].map(track => track.mode) : 
+            [];
+              
           player.source = {
             type: 'video',
             sources: [{
               src: qualitySelect.value,
               type: 'video/mp4'
-            }]
+            }],
+            tracks: subtitleTracks
           };
           
           // Update quality badge
@@ -385,6 +381,13 @@
             e.preventDefault();
             player.muted = !player.muted;
             showMessage(player.muted ? 'Muted' : 'Unmuted');
+            break;
+          case 's':
+            e.preventDefault();
+            if (subtitleSelect) {
+              subtitleSelect.focus();
+              showMessage('Select Subtitle', 2000);
+            }
             break;
           case '0': case '1': case '2': case '3': case '4':
           case '5': case '6': case '7': case '8': case '9':

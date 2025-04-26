@@ -22,6 +22,7 @@ export const videos = pgTable("videos", {
   url: text("url").notNull(),
   quality: text("quality").default("HD"),
   qualityOptions: text("quality_options").array(), // Array of quality options as JSON strings
+  subtitleOptions: text("subtitle_options").array(), // Array of subtitle options as JSON strings
   scrapedAt: timestamp("scraped_at").defaultNow(),
   lastAccessed: timestamp("last_accessed").defaultNow(),
   accessCount: integer("access_count").default(0),
@@ -121,6 +122,7 @@ export interface VideoInterface {
   url: string;
   quality: string | null;
   qualityOptions?: QualityOption[]; // Array of quality options
+  subtitleOptions?: SubtitleOption[]; // Array of subtitle options
   scrapedAt: Date | null;
   lastAccessed: Date | null;
   accessCount: number | null;
