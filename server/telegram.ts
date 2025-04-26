@@ -496,9 +496,17 @@ export class TelegramBot {
         if (args.length >= 2) {
           const action = args[1].toLowerCase();
           
+          // Check if user is admin for actions that modify data
+          if ((action === 'add' || action === 'toggle' || action === 'delete') && !this.isAdminUser(ctx.from.id)) {
+            await ctx.reply('❌ Admin authentication required. Use /admin <password> to authenticate first.');
+            return;
+          }
+          
           if (action === 'add' && args.length >= 3) {
             // Add domain
             const domain = args.slice(2).join(' ').trim();
+            
+            console.log(`Attempting to add domain: ${domain} by user ${ctx.from.id} (isAdmin: ${this.isAdminUser(ctx.from.id)})`);
             
             try {
               const newDomain = await storageInstance?.createDomain({

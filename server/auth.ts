@@ -34,8 +34,16 @@ export async function loginAdmin(req: Request, res: Response) {
     if (webAdminPassword) {
       console.log('Debug - WEB_ADMIN_PASSWORD length:', webAdminPassword.length);
       // Debug: print the actual char codes to diagnose potential whitespace issues
-      console.log('Debug - WEB_ADMIN_PASSWORD char codes:', [...webAdminPassword].map(c => c.charCodeAt(0)));
-      console.log('Debug - Input password char codes:', [...password].map(c => c.charCodeAt(0)));
+      const pwdCodes = [];
+      const inputCodes = [];
+      for (let i = 0; i < webAdminPassword.length; i++) {
+        pwdCodes.push(webAdminPassword.charCodeAt(i));
+      }
+      for (let i = 0; i < password.length; i++) {
+        inputCodes.push(password.charCodeAt(i));
+      }
+      console.log('Debug - WEB_ADMIN_PASSWORD char codes:', pwdCodes);
+      console.log('Debug - Input password char codes:', inputCodes);
     }
     
     let isMatch = false;
