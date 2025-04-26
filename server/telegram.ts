@@ -1137,10 +1137,12 @@ export class TelegramBot {
         '/domains - Manage whitelisted domains\n' +
         '/cache - Manage video cache\n' +
         '/logs - View recent logs\n' +
-        '/channel - Configure channel storage\n\n' +
+        '/channel - Configure channel storage\n' +
+        '/verifychannel <channelId> - Verify channel access\n\n' +
         '*Channel Storage:*\n' +
         'The bot can use a Telegram channel as database backup.\n' +
-        'Use /channel to configure this feature.\n\n' +
+        'Use /channel to configure this feature.\n' +
+        'Before enabling storage, use /verifychannel to test connectivity.\n\n' +
         '*Admin Authentication:*\n' +
         'Use /admin <password> to authenticate as admin.',
         { parse_mode: 'Markdown' }
