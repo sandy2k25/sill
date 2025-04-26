@@ -7,6 +7,8 @@ import { verifyOrigin, getSystemStats, embedProtectionMiddleware } from "./utils
 import { z } from "zod";
 import { insertDomainSchema, insertLogSchema } from "@shared/schema";
 import { authMiddleware, loginAdmin } from "./auth";
+import fs from "fs";
+import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -116,8 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.incrementAccessCount(id);
       
       // Load the player template and replace variables
-      const fs = require('fs');
-      const path = require('path');
+      // Using our imported fs and path modules
       
       try {
         // Read the player template file
