@@ -115,8 +115,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Increment access count
       await storage.incrementAccessCount(id);
       
-      // Return a full HTML page with Plyr.io player
-      return res.send(`
+      // Load the player template and replace variables
+      const fs = require('fs');
+      const path = require('path');
+      
+      try {
+        // Read the player template file
+        const templatePath = path.join(process.cwd(), 'player_template.html');
+        let playerTemplate = fs.readFileSync(templatePath, 'utf8');
+        
+        // Replace variables in the template
+        playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, video.url);
+        playerTemplate = playerTemplate.replace(/\$\{video\.title[^}]*\}/g, video.title || 'Video Player');
+        playerTemplate = playerTemplate.replace(/\$\{video\.quality[^}]*\}/g, video.quality || 'HD');
+        
+        return res.send(playerTemplate);
+      } catch (templateError) {
+        console.error('Template error:', templateError);
+        
+        // Fallback to simple player if template fails
+        return res.send(`
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -135,6 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             .plyr {
               height: 100%;
+              --plyr-color-main: #e5308c;
             }
             video {
               width: 100%;
@@ -169,8 +188,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const player = new Plyr('#player', {
                 fullscreen: { enabled: true, fallback: true, iosNative: true },
                 controls: [
-                  'play-large', 'play', 'progress', 'current-time', 'mute', 
-                  'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
+                  'play-large', 'rewind', 'play', 'fast-forward', 'progress', 
+                  'current-time', 'duration', 'mute', 'volume', 'settings', 
+                  'pip', 'airplay', 'fullscreen'
                 ],
               });
               
@@ -226,8 +246,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Serving video ${id} with season ${seasonid}, episode ${episodeid}`
       });
       
-      // Return a full HTML page with Plyr.io player (using the same player template)
-      return res.send(`
+      // Load the player template and replace variables
+      const fs = require('fs');
+      const path = require('path');
+      
+      try {
+        // Read the player template file
+        const templatePath = path.join(process.cwd(), 'player_template.html');
+        let playerTemplate = fs.readFileSync(templatePath, 'utf8');
+        
+        // Replace variables in the template
+        playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, video.url);
+        playerTemplate = playerTemplate.replace(/\$\{video\.title[^}]*\}/g, video.title || 'Video Player');
+        playerTemplate = playerTemplate.replace(/\$\{video\.quality[^}]*\}/g, video.quality || 'HD');
+        
+        return res.send(playerTemplate);
+      } catch (templateError) {
+        console.error('Template error:', templateError);
+        
+        // Fallback to simple player if template fails
+        return res.send(`
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -246,6 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             .plyr {
               height: 100%;
+              --plyr-color-main: #e5308c;
             }
             video {
               width: 100%;
@@ -264,7 +303,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               padding: 5px 10px;
               border-radius: 5px;
               pointer-events: none;
-              text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
             }
           </style>
         </head>
@@ -280,8 +318,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const player = new Plyr('#player', {
                 fullscreen: { enabled: true, fallback: true, iosNative: true },
                 controls: [
-                  'play-large', 'play', 'progress', 'current-time', 'mute', 
-                  'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
+                  'play-large', 'rewind', 'play', 'fast-forward', 'progress', 
+                  'current-time', 'duration', 'mute', 'volume', 'settings', 
+                  'pip', 'airplay', 'fullscreen'
                 ],
               });
               

@@ -16,6 +16,7 @@
     }
     .plyr {
       height: 100%;
+      --plyr-color-main: #e5308c; /* Custom brand color */
     }
     video {
       width: 100%;
@@ -36,28 +37,286 @@
       pointer-events: none;
       text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
     }
+    .player-controls-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      background: linear-gradient(0deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 15%, rgba(0,0,0,0) 85%, rgba(0,0,0,0.6) 100%);
+      pointer-events: none;
+    }
+    .plyr--paused .player-controls-overlay,
+    .player-container:hover .player-controls-overlay {
+      opacity: 1;
+    }
+    .player-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .quality-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(229, 48, 140, 0.8);
+      color: white;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 12px;
+      font-family: Arial, sans-serif;
+      z-index: 99;
+    }
+    .shortcuts-info {
+      position: absolute;
+      bottom: 55px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 12px;
+      font-family: Arial, sans-serif;
+      z-index: 99;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      max-width: 200px;
+    }
+    .player-container:hover .shortcuts-info {
+      opacity: 0.8;
+    }
+    .player-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      border-radius: 4px;
+      padding: 10px 20px;
+      font-size: 16px;
+      font-family: Arial, sans-serif;
+      z-index: 100;
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <div class="wovie-logo">WovIe Player</div>
-  <video id="player" playsinline controls>
-    <source src="${video.url}" type="video/mp4">
-  </video>
+  <div class="player-container">
+    <div class="wovie-logo">WovIe Player</div>
+    <div class="quality-badge">${video.quality || 'HD'}</div>
+    <div class="player-controls-overlay"></div>
+    <div class="shortcuts-info">
+      Shortcuts:<br>
+      Space - Play/Pause<br>
+      F - Fullscreen<br>
+      M - Mute<br>
+      ← → - Seek 10s<br>
+      ↑ ↓ - Volume
+    </div>
+    <div class="player-message" id="playerMessage"></div>
+    <video id="player" playsinline controls>
+      <source src="${video.url}" type="video/mp4">
+    </video>
+  </div>
   
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+      const playerElement = document.getElementById('player');
+      const playerMessage = document.getElementById('playerMessage');
+      
+      // Show message function
+      function showMessage(message, duration = 2000) {
+        playerMessage.textContent = message;
+        playerMessage.style.display = 'block';
+        
+        setTimeout(() => {
+          playerMessage.style.opacity = '0';
+          setTimeout(() => {
+            playerMessage.style.display = 'none';
+            playerMessage.style.opacity = '1';
+          }, 300);
+        }, duration);
+      }
+      
+      // Create custom speed options
+      const speeds = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+      
+      // Initialize player with advanced options
       const player = new Plyr('#player', {
         fullscreen: { enabled: true, fallback: true, iosNative: true },
         controls: [
-          'play-large', 'play', 'progress', 'current-time', 'mute', 
-          'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
+          'play-large', 'rewind', 'play', 'fast-forward', 'progress', 
+          'current-time', 'duration', 'mute', 'volume', 'captions', 
+          'settings', 'pip', 'airplay', 'fullscreen'
         ],
+        settings: ['captions', 'quality', 'speed', 'loop'],
+        speed: { selected: 1, options: speeds },
+        keyboard: { focused: true, global: true },
+        tooltips: { controls: true, seek: true },
+        seekTime: 10,
+        disableContextMenu: false,
+        invertTime: false
       });
       
-      // Auto-play when loaded
+      // Custom keyboard shortcuts
+      document.addEventListener('keydown', function(e) {
+        // Only handle if not in an input field
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+          return;
+        }
+        
+        switch(e.key.toLowerCase()) {
+          case ' ':
+            e.preventDefault();
+            if (player.playing) {
+              player.pause();
+              showMessage('Paused');
+            } else {
+              player.play();
+              showMessage('Playing');
+            }
+            break;
+          case 'arrowleft':
+            e.preventDefault();
+            player.rewind(10);
+            showMessage('Rewind 10s');
+            break;
+          case 'arrowright':
+            e.preventDefault();
+            player.forward(10);
+            showMessage('Forward 10s');
+            break;
+          case 'arrowup':
+            e.preventDefault();
+            const newVolume = Math.min(1, player.volume + 0.1);
+            player.volume = newVolume;
+            showMessage(`Volume: ${Math.round(newVolume * 100)}%`);
+            break;
+          case 'arrowdown':
+            e.preventDefault();
+            const reducedVolume = Math.max(0, player.volume - 0.1);
+            player.volume = reducedVolume;
+            showMessage(`Volume: ${Math.round(reducedVolume * 100)}%`);
+            break;
+          case 'f':
+            e.preventDefault();
+            player.fullscreen.toggle();
+            break;
+          case 'm':
+            e.preventDefault();
+            player.muted = !player.muted;
+            showMessage(player.muted ? 'Muted' : 'Unmuted');
+            break;
+          case '0': case '1': case '2': case '3': case '4':
+          case '5': case '6': case '7': case '8': case '9':
+            e.preventDefault();
+            // Jump to percentage of video
+            const percent = parseInt(e.key) * 10;
+            const duration = player.duration;
+            const seekTo = duration * (percent / 100);
+            player.currentTime = seekTo;
+            showMessage(`Jumped to ${percent}%`);
+            break;
+        }
+      });
+      
+      // Handle playback events
       player.on('ready', () => {
-        player.play();
+        // Auto-play when loaded
+        player.play().catch(error => {
+          console.log('Auto-play was prevented:', error);
+          // Show a play button overlay or instructions
+          showMessage('Click to play', 5000);
+        });
+        
+        // Add doubletap event for mobile seeking
+        let lastTap = 0;
+        let touchTimeout;
+        
+        playerElement.addEventListener('touchstart', (e) => {
+          const currentTime = new Date().getTime();
+          const tapLength = currentTime - lastTap;
+          clearTimeout(touchTimeout);
+          
+          if (tapLength < 500 && tapLength > 0) {
+            // Double tap detected
+            const screenWidth = window.innerWidth;
+            const touchX = e.touches[0].clientX;
+            
+            if (touchX < screenWidth / 2) {
+              // Left side - rewind
+              player.rewind(10);
+              showMessage('Rewind 10s');
+            } else {
+              // Right side - forward
+              player.forward(10);
+              showMessage('Forward 10s');
+            }
+            e.preventDefault();
+          } else {
+            // Single tap
+            touchTimeout = setTimeout(() => {
+              // Single tap logic if needed
+            }, 500);
+          }
+          lastTap = currentTime;
+        });
+      });
+      
+      player.on('play', () => {
+        document.title = `▶️ ${document.title.replace('▶️ ', '')}`;
+      });
+      
+      player.on('pause', () => {
+        document.title = document.title.replace('▶️ ', '');
+      });
+      
+      // Save playback position
+      player.on('timeupdate', () => {
+        const currentTime = player.currentTime;
+        const duration = player.duration;
+        
+        if (duration > 0 && currentTime > 0) {
+          localStorage.setItem(`wovie_time_${window.location.pathname}`, currentTime);
+        }
+      });
+      
+      // Restore playback position
+      player.on('loadedmetadata', () => {
+        const savedTime = localStorage.getItem(`wovie_time_${window.location.pathname}`);
+        if (savedTime !== null) {
+          const parsedTime = parseFloat(savedTime);
+          // Only restore if the saved time is within valid range
+          if (!isNaN(parsedTime) && parsedTime > 0 && parsedTime < player.duration - 10) {
+            player.currentTime = parsedTime;
+            showMessage(`Resumed from ${Math.floor(parsedTime / 60)}:${Math.floor(parsedTime % 60).toString().padStart(2, '0')}`);
+          }
+        }
+      });
+      
+      // Error handling
+      player.on('error', (event) => {
+        console.error('Player error:', event);
+        showMessage('Error playing video. Retrying...', 3000);
+        
+        // Try to reload the video after a brief delay
+        setTimeout(() => {
+          player.source = {
+            type: 'video',
+            sources: [{
+              src: '${video.url}',
+              type: 'video/mp4'
+            }]
+          };
+        }, 3000);
       });
     });
   </script>
