@@ -175,32 +175,16 @@
         });
       }
       
-      // Ensure all quality URLs have the necessary signature and key pair
+      // Keep original URLs as they have unique security parameters for each quality option
+      // Just log for debugging if any URL is missing required security parameters
       qualityOptions = qualityOptions.map(opt => {
-        // Check if URL has the required security parameters
-        const hasExpires = opt.url && (opt.url.includes('Expires=') || opt.url.includes('expires='));
-        const hasSignature = opt.url && (opt.url.includes('Signature=') || opt.url.includes('signature='));
-        const hasKeyName = opt.url && opt.url.includes('KeyName=');
-        
-        // If missing any required parameters, extract them from the original URL and append them
-        if (opt.url && (!hasExpires || !hasSignature || !hasKeyName)) {
-          console.log('Quality option missing security parameters:', opt.label);
+        if (opt.url) {
+          const hasExpires = opt.url.includes('Expires=') || opt.url.includes('expires=');
+          const hasSignature = opt.url.includes('Signature=') || opt.url.includes('signature=');
+          const hasKeyName = opt.url.includes('KeyName=');
           
-          // Extract the base URL without parameters
-          const baseUrl = opt.url.split('?')[0];
-          
-          // Extract parameters from original URL
-          const originalUrlParams = originalVideoUrl.includes('?') ? 
-            originalVideoUrl.split('?')[1] : '';
-          
-          if (originalUrlParams) {
-            // Construct new URL with security parameters
-            opt.url = `${baseUrl}?${originalUrlParams}`;
-            console.log('Fixed URL with security parameters:', opt.label);
-          } else {
-            // If original URL has no parameters, use it directly
-            opt.url = originalVideoUrl;
-            console.log('Using original URL as fallback for:', opt.label);
+          if (!hasExpires || !hasSignature || !hasKeyName) {
+            console.log('Quality option may have missing security parameters:', opt.label);
           }
         }
         return opt;
@@ -357,26 +341,15 @@
         if (subtitleOptions.length > 0) {
           // Add tracks directly to the video element for Plyr to pick up
           subtitleOptions.forEach((opt, index) => {
-            // Check if subtitle URL has the required security parameters
-            const hasExpires = opt.url && (opt.url.includes('Expires=') || opt.url.includes('expires='));
-            const hasSignature = opt.url && (opt.url.includes('Signature=') || opt.url.includes('signature='));
-            const hasKeyName = opt.url && opt.url.includes('KeyName=');
-            
-            // If missing any required parameters, extract them from the original video URL and append them
-            if (opt.url && (!hasExpires || !hasSignature || !hasKeyName)) {
-              console.log('Subtitle option missing security parameters:', opt.label);
+            // Keep original subtitle URLs as they have unique security parameters
+            // Just log for debugging if any URL is missing required security parameters
+            if (opt.url) {
+              const hasExpires = opt.url.includes('Expires=') || opt.url.includes('expires=');
+              const hasSignature = opt.url.includes('Signature=') || opt.url.includes('signature=');
+              const hasKeyName = opt.url.includes('KeyName=');
               
-              // Extract the base URL without parameters
-              const baseUrl = opt.url.split('?')[0];
-              
-              // Extract parameters from original video URL
-              const originalUrlParams = originalVideoUrl.includes('?') ? 
-                originalVideoUrl.split('?')[1] : '';
-              
-              if (originalUrlParams) {
-                // Construct new URL with security parameters
-                opt.url = `${baseUrl}?${originalUrlParams}`;
-                console.log('Fixed subtitle URL with security parameters:', opt.label);
+              if (!hasExpires || !hasSignature || !hasKeyName) {
+                console.log('Subtitle option may have missing security parameters:', opt.label);
               }
             }
             
