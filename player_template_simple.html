@@ -58,17 +58,26 @@
       max-width: 60%;
       text-align: center;
     }
-    .player-controls {
+    .quality-indicator {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      font-size: 14px;
+      z-index: 99;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 3px 8px;
+      border-radius: 5px;
+      pointer-events: none;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    }
+    .subtitle-selector {
       position: absolute;
       bottom: 20px;
-      left: 0;
-      right: 0;
-      display: flex;
-      justify-content: center;
-      z-index: 100;
-    }
-    .quality-selector, .subtitle-selector {
-      margin: 0 10px;
+      left: 50%;
+      transform: translateX(-50%);
       background-color: rgba(0, 0, 0, 0.7);
       color: white;
       border: 1px solid #666;
@@ -81,8 +90,9 @@
       -moz-appearance: none;
       cursor: pointer;
       outline: none;
+      z-index: 100;
     }
-    .quality-selector:focus, .subtitle-selector:focus {
+    .subtitle-selector:focus {
       border-color: #e5308c;
     }
     .player-message {
@@ -105,17 +115,11 @@
 <body>
   <div class="wovie-logo">WovIeX</div>
   <div class="video-title">${video.title || 'Video Player'}</div>
+  <div id="qualityIndicator" class="quality-indicator">Auto</div>
   <video id="player" playsinline controls>
     <source src="${video.url}" type="video/mp4">
   </video>
-  <div class="player-controls">
-    <select id="qualitySelect" class="quality-selector">
-      <option value="">Quality: Auto</option>
-    </select>
-    <select id="subtitleSelect" class="subtitle-selector">
-      <option value="">Subtitles: Off</option>
-    </select>
-  </div>
+  <!-- Subtitles will be handled through Plyr settings menu -->
   <div id="message" class="player-message"></div>
   
   <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
@@ -123,7 +127,6 @@
     document.addEventListener('DOMContentLoaded', function() {
       // Initialize variables
       const playerElement = document.getElementById('player');
-      const qualitySelect = document.getElementById('qualitySelect');
       const subtitleSelect = document.getElementById('subtitleSelect');
       const messageElement = document.getElementById('message');
       
@@ -142,15 +145,14 @@
       }
       
       // Parse quality options from the server
-      let qualityOptions = ${JSON.stringify(video.qualityOptions || [])};
+      let originalVideoUrl = "${video.url}";
+      let qualityOptions = [];
       
-      // Convert to Plyr quality format and find 360p
-      let plyrQualityOptions = [];
-      let default360pIndex = 0;
-      
-      if (qualityOptions.length > 0) {
-        if (typeof qualityOptions[0] === 'string') {
-          // Convert from string
+      try {
+        qualityOptions = ${JSON.stringify(video.qualityOptions || [])};
+        
+        // Convert strings to objects if needed
+        if (qualityOptions.length > 0 && typeof qualityOptions[0] === 'string') {
           qualityOptions = qualityOptions.map(optStr => {
             try {
               return JSON.parse(optStr);
@@ -160,27 +162,106 @@
             }
           }).filter(opt => opt !== null);
         }
+      } catch (e) {
+        console.error('Error processing quality options:', e);
+        qualityOptions = [];
+      }
+      
+      // Add the original video URL as a quality option if not already included
+      if (qualityOptions.length === 0) {
+        qualityOptions.push({
+          label: 'Auto',
+          url: originalVideoUrl
+        });
+      }
+      
+      // Ensure all quality URLs have the necessary signature and key pair
+      qualityOptions = qualityOptions.map(opt => {
+        // Check if URL has the required security parameters
+        const hasExpires = opt.url && (opt.url.includes('Expires=') || opt.url.includes('expires='));
+        const hasSignature = opt.url && (opt.url.includes('Signature=') || opt.url.includes('signature='));
+        const hasKeyName = opt.url && opt.url.includes('KeyName=');
         
-        // Create Plyr quality options
-        plyrQualityOptions = qualityOptions.map((opt, index) => {
-          // Check if this is 360p or contains 360 in the label
-          if (opt.label.includes('360')) {
-            default360pIndex = index;
+        // If missing any required parameters, extract them from the original URL and append them
+        if (opt.url && (!hasExpires || !hasSignature || !hasKeyName)) {
+          console.log('Quality option missing security parameters:', opt.label);
+          
+          // Extract the base URL without parameters
+          const baseUrl = opt.url.split('?')[0];
+          
+          // Extract parameters from original URL
+          const originalUrlParams = originalVideoUrl.includes('?') ? 
+            originalVideoUrl.split('?')[1] : '';
+          
+          if (originalUrlParams) {
+            // Construct new URL with security parameters
+            opt.url = `${baseUrl}?${originalUrlParams}`;
+            console.log('Fixed URL with security parameters:', opt.label);
+          } else {
+            // If original URL has no parameters, use it directly
+            opt.url = originalVideoUrl;
+            console.log('Using original URL as fallback for:', opt.label);
           }
-          return {
-            src: opt.url,
-            type: 'video/mp4',
-            size: parseInt(opt.label) || index  // Extract number if possible
-          };
+        }
+        return opt;
+      });
+      
+      // Find the best quality option for default (360p)
+      let defaultQuality = 0;
+      let qualities = [];
+      let manualQualityOptions = [];
+      
+      qualityOptions.forEach((opt, index) => {
+        let qualityLabel = opt.label || 'Unknown';
+        // Extract numeric part from label (e.g. "360p" -> 360)
+        let qualityNumber = parseInt(qualityLabel.replace(/[^0-9]/g, '')) || 0;
+        
+        // Create a formatted object for Plyr
+        manualQualityOptions.push({
+          src: opt.url,
+          type: 'video/mp4',
+          size: qualityNumber || index
         });
         
-        // If no 360p found, set the second option (usually SD) as default
-        if (default360pIndex === 0 && plyrQualityOptions.length > 1) {
-          default360pIndex = 1;  // Default to second option if 360p not found
+        // Track if this is 360p for default selection
+        if (qualityLabel.includes('360') || (qualityNumber >= 360 && qualityNumber < 480)) {
+          defaultQuality = index;
+        }
+        
+        // Add to our qualities array for reference
+        qualities.push({
+          index: index,
+          label: qualityLabel,
+          url: opt.url,
+          number: qualityNumber
+        });
+      });
+      
+      // Sort qualities by resolution number
+      qualities.sort((a, b) => a.number - b.number);
+      
+      // Default to 360p or the closest option if it doesn't exist
+      if (qualities.length > 1 && defaultQuality === 0) {
+        // Find the closest to 360p if available
+        for (let i = 0; i < qualities.length; i++) {
+          if (qualities[i].number >= 360) {
+            defaultQuality = qualities[i].index;
+            break;
+          }
+        }
+        // If we still don't have a selection, use the second quality option (usually SD)
+        if (defaultQuality === 0) {
+          defaultQuality = qualities[0].index;
         }
       }
       
-      // Setup Plyr with quality options in settings
+      // Create quality labels for Plyr's menu
+      const qualityLabels = {};
+      qualities.forEach(q => {
+        qualityLabels[q.index] = q.label;
+      });
+      
+      // Setup Plyr with custom quality options
       const player = new Plyr('#player', {
         fullscreen: { enabled: true, fallback: true, iosNative: true },
         controls: [
@@ -190,28 +271,52 @@
         ],
         settings: ['captions', 'quality', 'speed', 'loop'],
         quality: {
-          default: default360pIndex,
-          options: plyrQualityOptions.map((_, index) => index),
+          default: defaultQuality,
+          options: qualities.map(q => q.index),
           forced: true,
-          onChange: (quality) => {
-            // Update source based on quality selection
-            const newSource = plyrQualityOptions[quality].src;
+          onChange: function(newQuality) {
+            // Store the current time and playing state
             const currentTime = player.currentTime;
-            const isPaused = player.paused;
+            const wasPlaying = !player.paused;
             
-            // Update video source
+            // Get the selected quality details
+            const selectedQuality = qualities.find(q => q.index === newQuality);
+            
+            // Show message to user
+            showMessage(`Switching to ${selectedQuality.label}...`);
+            
+            // Update the source directly
             player.source = {
               type: 'video',
-              sources: [plyrQualityOptions[quality]]
+              sources: [{
+                src: selectedQuality.url,
+                type: 'video/mp4'
+              }]
             };
             
-            // After source loads, restore time and play state
-            player.on('loadedmetadata', function() {
-              player.currentTime = currentTime;
-              if (!isPaused) {
-                player.play().catch(e => console.error('Could not play after quality change:', e));
+            // Save preference
+            localStorage.setItem('wovie_preferred_quality', selectedQuality.url);
+            
+            // Handle restoration of time and play state
+            player.once('canplay', () => {
+              if (currentTime > 0) {
+                player.currentTime = currentTime;
               }
-            }, { once: true });
+              
+              if (wasPlaying) {
+                player.play().catch(e => {
+                  console.error('Failed to resume playback:', e);
+                  showMessage('Click to play');
+                });
+              }
+            });
+          }
+        },
+        // Add custom labels to the quality menu
+        i18n: {
+          qualityLabel: {
+            0: 'Auto',
+            ...qualityLabels
           }
         },
         speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
@@ -220,16 +325,15 @@
         captions: { active: true, language: 'auto', update: true }
       });
       
-      // Parse subtitle options from the server
-      let subtitleOptions = ${JSON.stringify(video.subtitleOptions || [])};
+      // Parse subtitle options from the server and add them as tracks
+      let subtitleOptions = [];
+      let savedSubtitleUrl = localStorage.getItem('wovie_preferred_subtitle');
       
-      // Hide the quality selector since we're using Plyr's built-in quality selection
-      qualitySelect.style.display = 'none';
-      
-      // Process subtitle options (they could be strings or objects)
-      if (subtitleOptions.length > 0) {
-        if (typeof subtitleOptions[0] === 'string') {
-          // Convert from string
+      try {
+        subtitleOptions = ${JSON.stringify(video.subtitleOptions || [])};
+        
+        // Convert strings to objects if needed
+        if (subtitleOptions.length > 0 && typeof subtitleOptions[0] === 'string') {
           subtitleOptions = subtitleOptions.map(optStr => {
             try {
               return JSON.parse(optStr);
@@ -240,114 +344,52 @@
           }).filter(opt => opt !== null);
         }
         
-        // Populate subtitle options dropdown
-        subtitleOptions.forEach(opt => {
-          const option = document.createElement('option');
-          option.value = opt.url;
-          option.textContent = opt.label;
-          option.dataset.lang = opt.language || 'en';
-          subtitleSelect.appendChild(option);
-        });
-        
-        // Set initial selection based on saved preference
-        if (savedSubtitle) {
-          for (let i = 0; i < subtitleSelect.options.length; i++) {
-            if (subtitleSelect.options[i].value === savedSubtitle) {
-              subtitleSelect.selectedIndex = i;
-              break;
+        // Add subtitle tracks to the video element
+        if (subtitleOptions.length > 0) {
+          // Add tracks directly to the video element for Plyr to pick up
+          subtitleOptions.forEach((opt, index) => {
+            const track = document.createElement('track');
+            track.kind = 'captions';
+            track.label = opt.label || 'Unknown';
+            track.srclang = opt.language || 'en';
+            track.src = opt.url;
+            
+            // Set default if this is the saved preference
+            if (savedSubtitleUrl === opt.url) {
+              track.default = true;
             }
-          }
-        }
-      }
-      
-      // Handle quality selection
-      qualitySelect.addEventListener('change', function() {
-        const currentTime = player.currentTime;
-        const isPaused = player.paused;
-        const selectedOption = qualitySelect.options[qualitySelect.selectedIndex];
-        const selectedUrl = qualitySelect.value;
-        
-        if (selectedUrl) {
-          // Save preference
-          localStorage.setItem('wovie_preferred_quality', selectedUrl);
-          
-          // Update player source
-          player.source = {
-            type: 'video',
-            sources: [{
-              src: selectedUrl,
-              type: 'video/mp4'
-            }]
-          };
-          
-          // Show message
-          showMessage(`Switching to ${selectedOption.textContent}`);
-          
-          // After source loads, restore time and play state
-          player.on('loadedmetadata', function() {
-            player.currentTime = currentTime;
-            if (!isPaused) {
-              player.play();
-            }
-          }, { once: true });
-        }
-      });
-      
-      // Handle subtitle selection
-      subtitleSelect.addEventListener('change', function() {
-        const selectedOption = subtitleSelect.options[subtitleSelect.selectedIndex];
-        const subtitleUrl = subtitleSelect.value;
-        
-        // Save preference
-        localStorage.setItem('wovie_preferred_subtitle', subtitleUrl);
-        
-        // Remove any existing subtitle tracks
-        if (player.media.querySelectorAll('track').length > 0) {
-          Array.from(player.media.querySelectorAll('track')).forEach(track => {
-            track.remove();
+            
+            // Add to video
+            playerElement.appendChild(track);
           });
-        }
-        
-        // If a subtitle is selected, add it to the player
-        if (subtitleUrl) {
-          const track = document.createElement('track');
-          track.kind = 'subtitles';
-          track.label = selectedOption.textContent;
-          track.srclang = selectedOption.dataset.lang || 'en';
-          track.src = subtitleUrl;
-          track.default = true;
-          player.media.appendChild(track);
           
-          // Show message
-          showMessage(`Subtitle: ${selectedOption.textContent}`);
-          
-          // Enable the subtitle
-          setTimeout(() => {
-            const textTracks = player.media.textTracks;
-            for (let i = 0; i < textTracks.length; i++) {
-              textTracks[i].mode = 'showing';
-            }
-          }, 500);
-        } else {
-          // No subtitle selected
-          showMessage('Subtitles disabled');
+          console.log(`Added ${subtitleOptions.length} subtitle tracks to video element`);
         }
-      });
+      } catch (e) {
+        console.error('Error processing subtitle options:', e);
+      }
       
       // Auto-play when loaded
       player.on('ready', () => {
+        // Try to play automatically
         player.play().catch(error => {
           console.log('Auto-play was prevented:', error);
           showMessage('Click to play', 5000);
         });
+        
+        // Apply saved subtitle on start if available
+        if (savedSubtitle && subtitleSelect.options.length > 1) {
+          setTimeout(() => {
+            subtitleSelect.dispatchEvent(new Event('change'));
+          }, 1000);
+        }
       });
       
-      // Apply saved subtitle on start if available
-      if (savedSubtitle) {
-        setTimeout(() => {
-          subtitleSelect.dispatchEvent(new Event('change'));
-        }, 1000);
-      }
+      // Error handling
+      player.on('error', (event) => {
+        console.error('Player error:', event);
+        showMessage('Video playback error. Try another quality option.', 5000);
+      });
     });
   </script>
 </body>
