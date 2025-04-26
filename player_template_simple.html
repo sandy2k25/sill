@@ -811,6 +811,36 @@
         }, 1000);
       });
       
+      // Play/Pause animation
+      function showPlayPauseAnimation(isPlaying) {
+        // Reset animation
+        playPauseAnimation.classList.remove('active');
+        
+        // Set the correct icon
+        if (isPlaying) {
+          playIcon.style.display = 'none';
+          pauseIcon.style.display = 'block';
+        } else {
+          playIcon.style.display = 'block';
+          pauseIcon.style.display = 'none';
+        }
+        
+        // Force reflow to restart animation
+        void playPauseAnimation.offsetWidth;
+        
+        // Start animation
+        playPauseAnimation.classList.add('active');
+      }
+      
+      // Listen to play/pause events
+      player.on('play', () => {
+        showPlayPauseAnimation(true);
+      });
+      
+      player.on('pause', () => {
+        showPlayPauseAnimation(false);
+      });
+      
       // Handle fullscreen changes to ensure logo, title, and quality indicator remain visible
       player.on('enterfullscreen', () => {
         console.log('Entering fullscreen mode');
