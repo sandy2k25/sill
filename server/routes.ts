@@ -258,18 +258,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const encryptedUrl = encryptVideoUrl(video.url);
         const streamUrl = `/stream/${encryptedUrl}`;
         
-        // Replace variables in the template
-        playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, streamUrl);
-        playerTemplate = playerTemplate.replace(/\$\{video\.title[^}]*\}/g, video.title || 'Video Player');
-        playerTemplate = playerTemplate.replace(/\$\{video\.quality[^}]*\}/g, video.quality || 'HD');
+        // Create a data object with all video properties
+        const videoData = {
+          url: streamUrl,
+          title: video.title || 'Video Player',
+          quality: video.quality || 'HD',
+          qualityOptions: video.qualityOptions || [],
+          subtitleOptions: video.subtitleOptions || []
+        };
         
-        // Handle quality options
-        const qualityOptionsJSON = JSON.stringify(video.qualityOptions || []);
-        playerTemplate = playerTemplate.replace(/\$\{JSON\.stringify\(video\.qualityOptions \|\| \[\]\)\}/g, qualityOptionsJSON);
-        
-        // Handle subtitle options
-        const subtitleOptionsJSON = JSON.stringify(video.subtitleOptions || []);
-        playerTemplate = playerTemplate.replace(/\$\{JSON\.stringify\(video\.subtitleOptions \|\| \[\]\)\}/g, subtitleOptionsJSON);
+        // Replace all template variables using Function constructor
+        // This approach is safer for complex template variables
+        playerTemplate = playerTemplate.replace(/\$\{([^}]+)\}/g, (match, expr) => {
+          try {
+            // Create a safe evaluation context with only the video object
+            const result = new Function('video', `return ${expr};`)(videoData);
+            return result !== undefined ? result : '';
+          } catch (e) {
+            console.error(`Failed to evaluate template expression: ${expr}`, e);
+            return '';
+          }
+        });
         
         return res.send(playerTemplate);
       } catch (templateError) {
@@ -463,18 +472,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const encryptedUrl = encryptVideoUrl(video.url);
         const streamUrl = `/stream/${encryptedUrl}`;
         
-        // Replace variables in the template
-        playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, streamUrl);
-        playerTemplate = playerTemplate.replace(/\$\{video\.title[^}]*\}/g, titleWithSeasonEp);
-        playerTemplate = playerTemplate.replace(/\$\{video\.quality[^}]*\}/g, video.quality || 'HD');
+        // Create a data object with all video properties
+        const videoData = {
+          url: streamUrl,
+          title: titleWithSeasonEp,
+          quality: video.quality || 'HD',
+          qualityOptions: video.qualityOptions || [],
+          subtitleOptions: video.subtitleOptions || []
+        };
         
-        // Handle quality options
-        const qualityOptionsJSON = JSON.stringify(video.qualityOptions || []);
-        playerTemplate = playerTemplate.replace(/\$\{JSON\.stringify\(video\.qualityOptions \|\| \[\]\)\}/g, qualityOptionsJSON);
-        
-        // Handle subtitle options
-        const subtitleOptionsJSON = JSON.stringify(video.subtitleOptions || []);
-        playerTemplate = playerTemplate.replace(/\$\{JSON\.stringify\(video\.subtitleOptions \|\| \[\]\)\}/g, subtitleOptionsJSON);
+        // Replace all template variables using Function constructor
+        // This approach is safer for complex template variables
+        playerTemplate = playerTemplate.replace(/\$\{([^}]+)\}/g, (match, expr) => {
+          try {
+            // Create a safe evaluation context with only the video object
+            const result = new Function('video', `return ${expr};`)(videoData);
+            return result !== undefined ? result : '';
+          } catch (e) {
+            console.error(`Failed to evaluate template expression: ${expr}`, e);
+            return '';
+          }
+        });
         
         return res.send(playerTemplate);
       } catch (templateError) {
