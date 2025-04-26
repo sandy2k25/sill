@@ -256,7 +256,8 @@ export class WovIeX {
         if (titleMatch && titleMatch[1]) {
           videoTitle = titleMatch[1].trim()
             .replace(' - letsembed.cc', '')
-            .replace(' | Downloader', '');
+            .replace(' | Downloader', '')
+            .replace(' | Video Downloader', '');
         }
         
         // Look directly for download links in the page 
