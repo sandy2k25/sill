@@ -258,13 +258,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const encryptedUrl = encryptVideoUrl(video.url);
         const streamUrl = `/stream/${encryptedUrl}`;
         
+        // Prepare quality options for the player
+        let qualityOptionsArray = [];
+        let selectedQuality = { label: video.quality || 'HD' };
+        
+        if (video.qualityOptions && Array.isArray(video.qualityOptions)) {
+          try {
+            qualityOptionsArray = video.qualityOptions.map(opt => {
+              if (typeof opt === 'string') {
+                try {
+                  return JSON.parse(opt);
+                } catch (e) {
+                  return { label: 'Unknown', url: opt };
+                }
+              }
+              return opt;
+            });
+            
+            // Encrypt all stream URLs
+            qualityOptionsArray = qualityOptionsArray.map(opt => {
+              if (opt && opt.url) {
+                const encryptedQualityUrl = encryptVideoUrl(opt.url);
+                return { 
+                  ...opt, 
+                  url: `/stream/${encryptedQualityUrl}` 
+                };
+              }
+              return opt;
+            });
+            
+            // Find the highest quality option to use as selected
+            if (qualityOptionsArray.length > 0) {
+              // Try to find HD or highest available quality
+              const hdOption = qualityOptionsArray.find(opt => 
+                opt.label && (opt.label.includes('HD') || opt.label.includes('720p') || opt.label.includes('1080p'))
+              );
+              
+              if (hdOption) {
+                selectedQuality = hdOption;
+              } else {
+                // Sort by numeric part of quality label (e.g., 480p -> 480)
+                qualityOptionsArray.sort((a, b) => {
+                  const aNum = parseInt((a.label || '').replace(/[^\d]/g, '')) || 0;
+                  const bNum = parseInt((b.label || '').replace(/[^\d]/g, '')) || 0;
+                  return bNum - aNum; // Sort descending
+                });
+                
+                // Use the first (highest) quality
+                selectedQuality = qualityOptionsArray[0];
+              }
+            }
+          } catch (qErr) {
+            console.error('Error processing quality options:', qErr);
+          }
+        }
+        
+        // Prepare subtitle options for the player
+        let subtitleOptionsArray = [];
+        
+        if (video.subtitleOptions && Array.isArray(video.subtitleOptions)) {
+          try {
+            subtitleOptionsArray = video.subtitleOptions.map(opt => {
+              if (typeof opt === 'string') {
+                try {
+                  return JSON.parse(opt);
+                } catch (e) {
+                  return { label: 'Unknown', url: opt, language: 'en' };
+                }
+              }
+              return opt;
+            });
+          } catch (sErr) {
+            console.error('Error processing subtitle options:', sErr);
+          }
+        }
+        
         // Create a data object with all video properties
         const videoData = {
           url: streamUrl,
           title: video.title || 'Video Player',
           quality: video.quality || 'HD',
-          qualityOptions: video.qualityOptions || [],
-          subtitleOptions: video.subtitleOptions || []
+          selectedQuality: selectedQuality,
+          qualityOptions: qualityOptionsArray,
+          subtitleOptions: subtitleOptionsArray
         };
         
         // Replace all template variables using Function constructor
@@ -472,13 +548,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const encryptedUrl = encryptVideoUrl(video.url);
         const streamUrl = `/stream/${encryptedUrl}`;
         
+        // Prepare quality options for the player
+        let qualityOptionsArray = [];
+        let selectedQuality = { label: video.quality || 'HD' };
+        
+        if (video.qualityOptions && Array.isArray(video.qualityOptions)) {
+          try {
+            qualityOptionsArray = video.qualityOptions.map(opt => {
+              if (typeof opt === 'string') {
+                try {
+                  return JSON.parse(opt);
+                } catch (e) {
+                  return { label: 'Unknown', url: opt };
+                }
+              }
+              return opt;
+            });
+            
+            // Encrypt all stream URLs
+            qualityOptionsArray = qualityOptionsArray.map(opt => {
+              if (opt && opt.url) {
+                const encryptedQualityUrl = encryptVideoUrl(opt.url);
+                return { 
+                  ...opt, 
+                  url: `/stream/${encryptedQualityUrl}` 
+                };
+              }
+              return opt;
+            });
+            
+            // Find the highest quality option to use as selected
+            if (qualityOptionsArray.length > 0) {
+              // Try to find HD or highest available quality
+              const hdOption = qualityOptionsArray.find(opt => 
+                opt.label && (opt.label.includes('HD') || opt.label.includes('720p') || opt.label.includes('1080p'))
+              );
+              
+              if (hdOption) {
+                selectedQuality = hdOption;
+              } else {
+                // Sort by numeric part of quality label (e.g., 480p -> 480)
+                qualityOptionsArray.sort((a, b) => {
+                  const aNum = parseInt((a.label || '').replace(/[^\d]/g, '')) || 0;
+                  const bNum = parseInt((b.label || '').replace(/[^\d]/g, '')) || 0;
+                  return bNum - aNum; // Sort descending
+                });
+                
+                // Use the first (highest) quality
+                selectedQuality = qualityOptionsArray[0];
+              }
+            }
+          } catch (qErr) {
+            console.error('Error processing quality options:', qErr);
+          }
+        }
+        
+        // Prepare subtitle options for the player
+        let subtitleOptionsArray = [];
+        
+        if (video.subtitleOptions && Array.isArray(video.subtitleOptions)) {
+          try {
+            subtitleOptionsArray = video.subtitleOptions.map(opt => {
+              if (typeof opt === 'string') {
+                try {
+                  return JSON.parse(opt);
+                } catch (e) {
+                  return { label: 'Unknown', url: opt, language: 'en' };
+                }
+              }
+              return opt;
+            });
+          } catch (sErr) {
+            console.error('Error processing subtitle options:', sErr);
+          }
+        }
+        
         // Create a data object with all video properties
         const videoData = {
           url: streamUrl,
           title: titleWithSeasonEp,
           quality: video.quality || 'HD',
-          qualityOptions: video.qualityOptions || [],
-          subtitleOptions: video.subtitleOptions || []
+          selectedQuality: selectedQuality,
+          qualityOptions: qualityOptionsArray,
+          subtitleOptions: subtitleOptionsArray
         };
         
         // Replace all template variables using Function constructor

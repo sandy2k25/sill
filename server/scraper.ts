@@ -704,11 +704,12 @@ export class WovIeX {
         
         // Make sure to decode HTML entities in the main videoUrl before inserting into database
         if (videoUrl) {
-          videoUrl = videoUrl.replace(/&amp;/g, '&')
-                             .replace(/&lt;/g, '<')
-                             .replace(/&gt;/g, '>')
-                             .replace(/&quot;/g, '"')
-                             .replace(/&#039;/g, "'");
+          const decodedUrl = videoUrl.replace(/&amp;/g, '&')
+                                    .replace(/&lt;/g, '<')
+                                    .replace(/&gt;/g, '>')
+                                    .replace(/&quot;/g, '"')
+                                    .replace(/&#039;/g, "'");
+          videoUrl = decodedUrl;
         }
         
         const videoInfo: InsertVideo = {
@@ -756,14 +757,7 @@ export class WovIeX {
         const videoUrl = '';
         const videoTitle = `Video ${videoId}`;
         
-        // Make sure to decode HTML entities in the URL
-    if (videoUrl) {
-      videoUrl = videoUrl.replace(/&amp;/g, '&')
-                         .replace(/&lt;/g, '<')
-                         .replace(/&gt;/g, '>')
-                         .replace(/&quot;/g, '"')
-                         .replace(/&#039;/g, "'");
-    }
+        // Empty videoUrl is already set above, no need to decode it
     
     const fallbackInfo: InsertVideo = {
           videoId,
