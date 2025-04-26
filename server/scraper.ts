@@ -252,7 +252,9 @@ export class WovIeX {
         let videoTitle = `Video ${videoId}`;
         const titleMatch = embedHtml.match(/<title>(.*?)<\/title>/i);
         if (titleMatch && titleMatch[1]) {
-          videoTitle = titleMatch[1].trim().replace(' - letsembed.cc', '');
+          videoTitle = titleMatch[1].trim()
+            .replace(' - letsembed.cc', '')
+            .replace(' | Downloader', '');
         }
         
         // Look directly for download links in the page 
