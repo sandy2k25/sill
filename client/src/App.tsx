@@ -8,6 +8,7 @@ import Home from "@/pages/home";
 import Admin from "@/pages/admin";
 import Logs from "@/pages/logs";
 import NotFound from "@/pages/not-found";
+import Error404 from "@/pages/error404";
 import AuthPage from "@/pages/auth-page";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
@@ -36,16 +37,21 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/taah/:id" component={Home} />
+      <Route path="/" component={Error404} />
+      <Route path="/taah/:id">
+        {(params) => <ProtectedRoute component={Home} path="/taah/:id" />}
+      </Route>
       <Route path="/auth" component={AuthPage} />
+      <Route path="/home">
+        {(params) => <ProtectedRoute component={Home} path="/home" />}
+      </Route>
       <Route path="/admin">
         {(params) => <ProtectedRoute component={Admin} path="/admin" />}
       </Route>
       <Route path="/logs">
         {(params) => <ProtectedRoute component={Logs} path="/logs" />}
       </Route>
-      <Route component={NotFound} />
+      <Route component={Error404} />
     </Switch>
   );
 }
