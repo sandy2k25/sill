@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { getDomains, addDomain, toggleDomainStatus, deleteDomain } from '@/lib/api';
+import { getDomains, addDomain, toggleDomainStatus, deleteDomain, checkDomain } from '@/lib/api';
 import { Domain } from '@/lib/types';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const DomainWhitelist: React.FC = () => {
   const [domains, setDomains] = useState<Domain[]>([]);

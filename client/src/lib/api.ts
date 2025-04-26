@@ -82,6 +82,17 @@ export const deleteDomain = async (id: number): Promise<void> => {
   await apiRequest('DELETE', `/api/domains/${id}`);
 };
 
+export const checkDomain = async (domain: string): Promise<{domain: string, whitelisted: boolean}> => {
+  try {
+    const response = await fetch(`/api/domains/check?domain=${encodeURIComponent(domain)}`);
+    const data = await response.json();
+    return data.success ? data.data : { domain, whitelisted: false };
+  } catch (error) {
+    console.error('Error checking domain status:', error);
+    return { domain, whitelisted: false };
+  }
+};
+
 // Logs API
 export const getLogs = async (
   limit = 20, 

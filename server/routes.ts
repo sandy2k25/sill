@@ -657,6 +657,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Domain verification endpoint - check if a domain is whitelisted
+  app.get('/api/domains/check', async (req, res) => {
+    try {
+      const { domain } = req.query;
+      
+      if (!domain || typeof domain !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'Domain parameter is required'
+        });
+      }
+      
+      const isWhitelisted = await storage.isDomainWhitelisted(domain);
+      
+      return res.json({
+        success: true,
+        data: {
+          domain,
+          whitelisted: isWhitelisted
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
   app.post('/api/domains', authMiddleware, async (req, res) => {
     try {
       const validatedDomain = insertDomainSchema.parse(req.body);
