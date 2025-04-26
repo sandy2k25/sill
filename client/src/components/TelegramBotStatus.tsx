@@ -101,7 +101,7 @@ const TelegramBotStatus: React.FC = () => {
               <>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Username:</span>
-                  <span>@VideoScraperBot</span>
+                  <span>@WovIeXBot</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Commands:</span>

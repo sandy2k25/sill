@@ -59,17 +59,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Length', chunkSize);
         res.setHeader('Content-Type', contentType);
         
-        // Stream the content
-        videoChunkResponse.body.pipe(res);
+        // Stream the content from fetch Response (which uses ReadableStream)
+        // Convert ReadableStream to Node.js Readable stream
+        if (videoChunkResponse.body) {
+          const { Readable } = require('stream');
+          const nodeReadable = Readable.fromWeb(videoChunkResponse.body);
+          nodeReadable.pipe(res);
+        } else {
+          throw new Error('No response body received');
+        }
       } else {
         // No range requested, serve the whole file
         res.setHeader('Content-Length', contentLength);
         res.setHeader('Content-Type', contentType);
         res.setHeader('Accept-Ranges', 'bytes');
         
-        // Stream the entire video
+        // Stream the entire video from fetch Response
         const fullVideoResponse = await fetch(videoUrl);
-        fullVideoResponse.body.pipe(res);
+        
+        // Convert ReadableStream to Node.js Readable stream
+        if (fullVideoResponse.body) {
+          const { Readable } = require('stream');
+          const nodeReadable = Readable.fromWeb(fullVideoResponse.body);
+          nodeReadable.pipe(res);
+        } else {
+          throw new Error('No response body received');
+        }
       }
     } catch (error) {
       console.error('Streaming error:', error);
@@ -189,14 +204,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const templatePath = path.join(process.cwd(), 'player_template.html');
         let playerTemplate = fs.readFileSync(templatePath, 'utf8');
         
+        // Encrypt the video URL for secure playback
+        const encryptedUrl = encryptVideoUrl(video.url);
+        const streamUrl = `/stream/${encryptedUrl}`;
+        
         // Replace variables in the template
-        playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, video.url);
+        playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, streamUrl);
         playerTemplate = playerTemplate.replace(/\$\{video\.title[^}]*\}/g, video.title || 'Video Player');
         playerTemplate = playerTemplate.replace(/\$\{video\.quality[^}]*\}/g, video.quality || 'HD');
         
         return res.send(playerTemplate);
       } catch (templateError) {
         console.error('Template error:', templateError);
+        
+        // Encrypt the video URL for secure playback
+        const encryptedUrl = encryptVideoUrl(video.url);
+        const streamUrl = `/stream/${encryptedUrl}`;
         
         // Fallback to simple player if template fails
         const fallbackHtml = `
@@ -244,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <body>
           <div class="wovie-logo">WovIe Player</div>
           <video id="player" playsinline controls>
-            <source src="${video.url}" type="video/mp4">
+            <source src="${streamUrl}" type="video/mp4">
           </video>
           
           <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
@@ -325,14 +348,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const seasonEpisodeInfo = ` S${seasonid} E${episodeid}`;
         const titleWithSeasonEp = video.title ? `${video.title}${seasonEpisodeInfo}` : `Video Player${seasonEpisodeInfo}`;
         
+        // Encrypt the video URL for secure playback
+        const encryptedUrl = encryptVideoUrl(video.url);
+        const streamUrl = `/stream/${encryptedUrl}`;
+        
         // Replace variables in the template
-        playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, video.url);
+        playerTemplate = playerTemplate.replace(/\$\{video\.url\}/g, streamUrl);
         playerTemplate = playerTemplate.replace(/\$\{video\.title[^}]*\}/g, titleWithSeasonEp);
         playerTemplate = playerTemplate.replace(/\$\{video\.quality[^}]*\}/g, video.quality || 'HD');
         
         return res.send(playerTemplate);
       } catch (templateError) {
         console.error('Template error:', templateError);
+        
+        // Encrypt the video URL for secure playback
+        const encryptedUrl = encryptVideoUrl(video.url);
+        const streamUrl = `/stream/${encryptedUrl}`;
         
         // Fallback to simple player if template fails
         const fallbackHtml = `
@@ -379,7 +410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <body>
           <div class="wovie-logo">WovIe Player</div>
           <video id="player" playsinline controls>
-            <source src="${video.url}" type="video/mp4">
+            <source src="${streamUrl}" type="video/mp4">
           </video>
           
           <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>

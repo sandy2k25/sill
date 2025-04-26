@@ -27,7 +27,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <i className="fas fa-play-circle text-primary text-2xl"></i>
-            <h1 className="text-xl font-bold">VideoScraperX</h1>
+            <h1 className="text-xl font-bold">WovIeX</h1>
           </div>
           
           {/* Navigation */}
@@ -65,7 +65,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <footer className="bg-darkSecondary py-4 px-6 border-t border-darkAccent">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center text-sm text-gray-400">
           <div>
-            VideoScraperX &copy; {new Date().getFullYear()} - All rights reserved
+            WovIeX &copy; {new Date().getFullYear()} - All rights reserved
           </div>
           <div className="mt-2 md:mt-0">
             <span>Current Version: 1.2.0</span>
