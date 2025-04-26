@@ -250,8 +250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Load the player template and replace variables
-      const fs = require('fs');
-      const path = require('path');
+      // Using our imported fs and path modules
       
       try {
         // Read the player template file
