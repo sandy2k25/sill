@@ -22,7 +22,7 @@ const AuthPage = () => {
     try {
       const success = await login(password);
       if (success) {
-        setLocation("/admin");
+        setLocation("/nimda");
       } else {
         setError("Invalid password. Please try again.");
       }
