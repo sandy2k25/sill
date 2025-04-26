@@ -395,18 +395,33 @@ export class WovIeX {
               const apiData = await apiResponse.json();
               
               if (apiData && apiData.success && apiData.data && apiData.data.length > 0) {
-                // Find the highest quality URL
+                // Find the highest quality URL and collect all quality options
                 let bestQuality = apiData.data[0];
+                const allQualityOptions = [];
+                
                 for (const file of apiData.data) {
-                  if (file.label && file.label.includes('HD') && file.file) {
-                    bestQuality = file;
+                  if (file.label && file.file) {
+                    // Add to quality options
+                    allQualityOptions.push({
+                      label: file.label,
+                      url: file.file
+                    });
+                    
+                    // Update best quality if this is HD
+                    if (file.label.includes('HD') || file.label.includes('720p') || file.label.includes('1080p')) {
+                      bestQuality = file;
+                    }
                   }
                 }
                 
                 if (bestQuality && bestQuality.file) {
                   videoUrl = bestQuality.file;
                   logInfo('Scraper', `Found video URL from API: ${videoUrl}`);
+                  logInfo('Scraper', `Found ${allQualityOptions.length} quality options`);
                 }
+                
+                // Store the quality options for later use
+                this._lastQualityOptions = allQualityOptions;
               }
             }
           } catch (apiError) {
@@ -683,6 +698,7 @@ export class WovIeX {
         videoTitle = titleMatch[1]
           .replace(' - letsembed.cc', '')
           .replace(' | Downloader', '')
+          .replace(' | Video Downloader', '')
           .trim();
       }
       

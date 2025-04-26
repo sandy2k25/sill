@@ -32,6 +32,7 @@ export const insertVideoSchema = createInsertSchema(videos).pick({
   title: true,
   url: true,
   quality: true,
+  qualityOptions: true,
 });
 
 // Domain whitelist schema
@@ -75,6 +76,12 @@ export type Domain = typeof domains.$inferSelect;
 export type InsertLog = z.infer<typeof insertLogSchema>;
 export type Log = typeof logs.$inferSelect;
 
+// Define a type for quality options
+export interface QualityOption {
+  label: string;    // Label like "360p", "480p", "720p", etc.
+  url: string;      // Direct URL for this quality
+}
+
 // Ensure all schema types are properly defined
 export interface VideoInterface {
   id: number;
@@ -82,6 +89,7 @@ export interface VideoInterface {
   title: string | null;
   url: string;
   quality: string | null;
+  qualityOptions?: QualityOption[]; // Array of quality options
   scrapedAt: Date | null;
   lastAccessed: Date | null;
   accessCount: number | null;
