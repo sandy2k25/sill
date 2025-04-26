@@ -94,6 +94,29 @@
       font-family: Arial, sans-serif;
       z-index: 99;
     }
+    .quality-selector {
+      position: absolute;
+      top: 45px;
+      left: 10px;
+      z-index: 99;
+      display: none;
+    }
+    .player-container:hover .quality-selector {
+      display: block;
+    }
+    .quality-selector select {
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: 1px solid rgba(229, 48, 140, 0.8);
+      border-radius: 4px;
+      padding: 5px;
+      font-size: 12px;
+      font-family: Arial, sans-serif;
+      outline: none;
+    }
+    .quality-selector select:focus {
+      border-color: rgba(229, 48, 140, 1);
+    }
     .shortcuts-info {
       position: absolute;
       bottom: 55px;
@@ -131,7 +154,13 @@
 <body>
   <div class="player-container">
     <div class="wovie-logo">WovIeX</div>
-    <div class="quality-badge">${video.quality || 'HD'}</div>
+    <div class="quality-badge" id="qualityBadge">${video.quality || 'HD'}</div>
+    <div class="quality-selector">
+      <select id="qualitySelect">
+        <option value="${video.url}" selected>${video.quality || 'HD'}</option>
+        ${video.qualityOptions ? video.qualityOptions.map(opt => `<option value="${opt.url}">${opt.label}</option>`).join('') : ''}
+      </select>
+    </div>
     <div class="video-title">${video.title || 'Video Player'}</div>
     <div class="player-controls-overlay"></div>
     <div class="shortcuts-info">
@@ -140,7 +169,8 @@
       F - Fullscreen<br>
       M - Mute<br>
       ← → - Seek 10s<br>
-      ↑ ↓ - Volume
+      ↑ ↓ - Volume<br>
+      Q - Quality
     </div>
     <div class="player-message" id="playerMessage"></div>
     <video id="player" playsinline controls>
@@ -188,6 +218,44 @@
         invertTime: false
       });
       
+      // Handle quality selection
+      const qualitySelect = document.getElementById('qualitySelect');
+      const qualityBadge = document.getElementById('qualityBadge');
+      
+      if (qualitySelect) {
+        qualitySelect.addEventListener('change', function() {
+          const currentTime = player.currentTime;
+          const isPaused = player.paused;
+          const selectedOption = qualitySelect.options[qualitySelect.selectedIndex];
+          const qualityLabel = selectedOption.text;
+          
+          // Update player source
+          player.source = {
+            type: 'video',
+            sources: [{
+              src: qualitySelect.value,
+              type: 'video/mp4'
+            }]
+          };
+          
+          // Update quality badge
+          if (qualityBadge) {
+            qualityBadge.textContent = qualityLabel;
+          }
+          
+          // Show message
+          showMessage(`Switching to ${qualityLabel}`, 2000);
+          
+          // After source loads, restore time and play state
+          player.on('loadedmetadata', function() {
+            player.currentTime = currentTime;
+            if (!isPaused) {
+              player.play();
+            }
+          }, { once: true });
+        });
+      }
+      
       // Custom keyboard shortcuts
       document.addEventListener('keydown', function(e) {
         // Only handle if not in an input field
@@ -196,6 +264,11 @@
         }
         
         switch(e.key.toLowerCase()) {
+          case 'q':
+            e.preventDefault();
+            qualitySelect.focus();
+            showMessage('Select Quality', 2000);
+            break;
           case ' ':
             e.preventDefault();
             if (player.playing) {

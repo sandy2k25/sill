@@ -82,6 +82,18 @@ export interface QualityOption {
   url: string;      // Direct URL for this quality
 }
 
+// Convert QualityOption array to string array for storage
+export function qualityOptionsToStringArray(options: QualityOption[] | undefined): string[] | undefined {
+  if (!options || options.length === 0) return undefined;
+  return options.map(opt => JSON.stringify(opt));
+}
+
+// Convert string array back to QualityOption array
+export function stringArrayToQualityOptions(array: string[] | null | undefined): QualityOption[] | undefined {
+  if (!array || array.length === 0) return undefined;
+  return array.map(str => JSON.parse(str) as QualityOption);
+}
+
 // Ensure all schema types are properly defined
 export interface VideoInterface {
   id: number;

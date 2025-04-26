@@ -65,6 +65,7 @@ const puppeteer = isReplitEnvironment ? mockPuppeteer : require('puppeteer');
 export class WovIeX {
   private browser: Browser | null = null;
   private storage: any = null;
+  private _lastQualityOptions: { label: string, url: string }[] = []; // Store quality options from last scrape
   private settings = {
     timeout: 30000, // 30 seconds
     autoRetry: true,
@@ -441,7 +442,8 @@ export class WovIeX {
           videoId,
           title: videoTitle,
           url: videoUrl,
-          quality: 'HD'
+          quality: 'HD',
+          qualityOptions: this._lastQualityOptions.length > 0 ? this._lastQualityOptions : undefined
         };
         
         // Store in database - always store the base video with the current URL
