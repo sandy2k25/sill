@@ -124,10 +124,7 @@ export const getSystemStats = async (): Promise<SystemStats> => {
 
 // Telegram bot API
 export const getTelegramStatus = async (): Promise<TelegramStatus> => {
-  const res = await fetch('/api/telegram/status');
-  if (!res.ok) {
-    throw new Error(`Failed to fetch Telegram status: ${res.statusText}`);
-  }
+  const res = await apiRequest('GET', '/api/telegram/status');
   const data = await res.json();
   return data.data;
 };

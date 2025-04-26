@@ -812,6 +812,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Telegram bot management
+  app.get('/api/telegram/bot/info', authMiddleware, async (req, res) => {
+    try {
+      // Get bot username if available
+      let username = 'your_bot';
+      
+      if (telegramBot.isActive() && telegramBot.getBot()) {
+        try {
+          const bot = telegramBot.getBot();
+          if (bot) {
+            const botInfo = await bot.telegram.getMe();
+            username = botInfo.username || 'your_bot';
+          }
+        } catch (botError) {
+          console.error('Error fetching bot info:', botError);
+        }
+      }
+      
+      return res.json({
+        success: true,
+        username: username
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
   app.get('/api/telegram/status', authMiddleware, async (req, res) => {
     try {
       const isActive = telegramBot.isActive();

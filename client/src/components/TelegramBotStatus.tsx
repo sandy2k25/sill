@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 import { 
   getTelegramStatus, 
   startTelegramBot, 
@@ -41,10 +42,10 @@ const TelegramBotStatus: React.FC = () => {
       setChannelId(status.channelId);
     }
     
-    // Extract bot username if token is available (token could be boolean or string)
-    if (status?.botToken && typeof status.botToken === 'string') {
+    // Extract bot username if token is available
+    if (status?.botToken) {
       // Try to fetch bot info from the API
-      fetch('/api/telegram/bot/info')
+      apiRequest('GET', '/api/telegram/bot/info')
         .then(response => response.json())
         .then(data => {
           if (data.success && data.username) {
