@@ -127,7 +127,7 @@
     document.addEventListener('DOMContentLoaded', function() {
       // Initialize variables
       const playerElement = document.getElementById('player');
-      const subtitleSelect = document.getElementById('subtitleSelect');
+      const qualityIndicator = document.getElementById('qualityIndicator');
       const messageElement = document.getElementById('message');
       
       // Load saved quality and subtitle preferences
@@ -255,6 +255,12 @@
         }
       }
       
+      // Set initial quality indicator
+      const initialQuality = qualities.find(q => q.index === defaultQuality);
+      if (initialQuality) {
+        qualityIndicator.textContent = initialQuality.label;
+      }
+      
       // Create quality labels for Plyr's menu
       const qualityLabels = {};
       qualities.forEach(q => {
@@ -284,6 +290,9 @@
             
             // Show message to user
             showMessage(`Switching to ${selectedQuality.label}...`);
+            
+            // Update the quality indicator in the top-left corner
+            qualityIndicator.textContent = selectedQuality.label;
             
             // Update the source directly
             player.source = {
@@ -348,6 +357,29 @@
         if (subtitleOptions.length > 0) {
           // Add tracks directly to the video element for Plyr to pick up
           subtitleOptions.forEach((opt, index) => {
+            // Check if subtitle URL has the required security parameters
+            const hasExpires = opt.url && (opt.url.includes('Expires=') || opt.url.includes('expires='));
+            const hasSignature = opt.url && (opt.url.includes('Signature=') || opt.url.includes('signature='));
+            const hasKeyName = opt.url && opt.url.includes('KeyName=');
+            
+            // If missing any required parameters, extract them from the original video URL and append them
+            if (opt.url && (!hasExpires || !hasSignature || !hasKeyName)) {
+              console.log('Subtitle option missing security parameters:', opt.label);
+              
+              // Extract the base URL without parameters
+              const baseUrl = opt.url.split('?')[0];
+              
+              // Extract parameters from original video URL
+              const originalUrlParams = originalVideoUrl.includes('?') ? 
+                originalVideoUrl.split('?')[1] : '';
+              
+              if (originalUrlParams) {
+                // Construct new URL with security parameters
+                opt.url = `${baseUrl}?${originalUrlParams}`;
+                console.log('Fixed subtitle URL with security parameters:', opt.label);
+              }
+            }
+            
             const track = document.createElement('track');
             track.kind = 'captions';
             track.label = opt.label || 'Unknown';
@@ -378,10 +410,9 @@
         });
         
         // Apply saved subtitle on start if available
-        if (savedSubtitle && subtitleSelect.options.length > 1) {
-          setTimeout(() => {
-            subtitleSelect.dispatchEvent(new Event('change'));
-          }, 1000);
+        if (savedSubtitle) {
+          // Captions will be automatically applied through the track's default attribute
+          console.log('Saved subtitle preference will be applied:', savedSubtitle);
         }
       });
       
