@@ -414,17 +414,12 @@ export class WovIeX {
           }
         }
         
-        // If all extraction methods fail, use fallback sample videos
+        // If all extraction methods fail, return an empty URL to show error on player
         if (!videoUrl) {
-          logWarn('Scraper', `Could not extract video URL, using fallback`);
+          logWarn('Scraper', `Could not extract video URL for ${videoId}`);
           
-          if (videoId === '12345' || parseInt(videoId) % 2 === 0) {
-            videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-            videoTitle = 'Big Buck Bunny';
-          } else {
-            videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
-            videoTitle = 'Elephants Dream';
-          }
+          // Return empty URL
+          videoUrl = '';
         }
         
         const videoInfo: InsertVideo = {
@@ -457,15 +452,10 @@ export class WovIeX {
       } catch (error) {
         logError('Scraper', `HTTP fallback failed for video ID ${videoId}: ${error instanceof Error ? error.message : String(error)}`);
         
-        // If HTTP fallback fails, use a sample video as absolute last resort
-        let videoUrl, videoTitle;
-        if (videoId === '12345' || parseInt(videoId) % 2 === 0) {
-          videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-          videoTitle = 'Big Buck Bunny';
-        } else {
-          videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
-          videoTitle = 'Elephants Dream';
-        }
+        // If HTTP fallback fails, return empty URL for error handling
+        // Don't use sample videos - client prefers a clean error state
+        const videoUrl = '';
+        const videoTitle = `Video ${videoId}`;
         
         const fallbackInfo: InsertVideo = {
           videoId,
