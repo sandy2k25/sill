@@ -36,6 +36,8 @@ export interface ScraperSettings {
 export interface TelegramStatus {
   active: boolean;
   botToken: boolean;
+  channelStorageEnabled: boolean;
+  channelId: string | null;
 }
 
 export interface SystemStats {

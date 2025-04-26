@@ -139,3 +139,12 @@ export const startTelegramBot = async (): Promise<void> => {
 export const stopTelegramBot = async (): Promise<void> => {
   await apiRequest('POST', '/api/telegram/stop');
 };
+
+// Telegram channel storage API
+export const enableChannelStorage = async (channelId: string): Promise<void> => {
+  await apiRequest('POST', '/api/telegram/channel/enable', { channelId });
+};
+
+export const disableChannelStorage = async (): Promise<void> => {
+  await apiRequest('POST', '/api/telegram/channel/disable');
+};
