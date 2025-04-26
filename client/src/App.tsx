@@ -51,8 +51,8 @@ function Router() {
       <Route path="/home">
         {(params) => <ProtectedRoute component={Home} path="/home" />}
       </Route>
-      <Route path="/admin">
-        {(params) => <ProtectedRoute component={Admin} path="/admin" />}
+      <Route path="/nimda">
+        {(params) => <ProtectedRoute component={Admin} path="/nimda" />}
       </Route>
       <Route path="/logs">
         {(params) => <ProtectedRoute component={Logs} path="/logs" />}
