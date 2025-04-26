@@ -925,6 +925,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Verify Telegram channel access
+  app.post('/api/telegram/channel/verify', authMiddleware, async (req, res) => {
+    try {
+      const { channelId } = req.body;
+      
+      if (!channelId || typeof channelId !== 'string') {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Valid channel ID is required' 
+        });
+      }
+      
+      if (!telegramBot.isActive()) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Telegram bot must be running to verify channel access' 
+        });
+      }
+      
+      console.log('API: Verifying channel access for ID:', channelId);
+      const result = await telegramBot.verifyChannelAccess(channelId);
+      
+      return res.json({ 
+        success: true, 
+        data: result
+      });
+    } catch (error) {
+      console.error('Error verifying channel access:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'An unknown error occurred' 
+      });
+    }
+  });
+  
   // Channel storage management endpoints
   app.post('/api/telegram/channel/enable', authMiddleware, async (req, res) => {
     try {

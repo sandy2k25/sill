@@ -6,7 +6,8 @@ import {
   startTelegramBot, 
   stopTelegramBot, 
   enableChannelStorage,
-  disableChannelStorage
+  disableChannelStorage,
+  verifyChannelAccess
 } from '@/lib/api';
 import { TelegramStatus } from '@/lib/types';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,12 @@ const TelegramBotStatus: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
   const [botUsername, setBotUsername] = useState<string>('');
+  const [verifyingChannel, setVerifyingChannel] = useState<boolean>(false);
+  const [channelVerificationStatus, setChannelVerificationStatus] = useState<{
+    verified: boolean;
+    message: string;
+    correctedId?: string;
+  } | null>(null);
   const { toast } = useToast();
   
   useEffect(() => {
@@ -159,6 +166,66 @@ const TelegramBotStatus: React.FC = () => {
     }
   };
   
+  const handleVerifyChannel = async () => {
+    if (!channelId || !channelId.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid channel ID",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!status?.active) {
+      toast({
+        title: "Error",
+        description: "Bot must be running to verify channel access",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setVerifyingChannel(true);
+    setChannelVerificationStatus(null);
+    
+    try {
+      const result = await verifyChannelAccess(channelId);
+      
+      setChannelVerificationStatus({
+        verified: result.valid,
+        message: result.message,
+        correctedId: result.correctedId
+      });
+      
+      // If the verification returned a corrected ID, update the input field
+      if (result.correctedId) {
+        setChannelId(result.correctedId);
+      }
+      
+      if (result.valid) {
+        toast({
+          title: "Success",
+          description: "Channel verification successful",
+        });
+      } else {
+        toast({
+          title: "Warning",
+          description: "Channel verification failed",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to verify channel access",
+        variant: "destructive"
+      });
+      setChannelVerificationStatus(null);
+    } finally {
+      setVerifyingChannel(false);
+    }
+  };
+  
   const handleEnableChannelStorage = async () => {
     if (!channelId || !channelId.trim()) {
       toast({
@@ -178,14 +245,33 @@ const TelegramBotStatus: React.FC = () => {
       return;
     }
     
+    // If channel hasn't been verified yet, verify it first
+    if (!channelVerificationStatus?.verified) {
+      toast({
+        title: "Info",
+        description: "Verifying channel access first...",
+      });
+      
+      await handleVerifyChannel();
+      
+      // If verification failed, don't proceed
+      if (!channelVerificationStatus?.verified) {
+        return;
+      }
+    }
+    
     setActionLoading(true);
     try {
-      await enableChannelStorage(channelId);
+      // Use the corrected ID if available
+      const idToUse = channelVerificationStatus?.correctedId || channelId;
+      
+      await enableChannelStorage(idToUse);
       toast({
         title: "Success",
         description: "Channel storage enabled successfully",
       });
       fetchStatus();
+      setChannelVerificationStatus(null); // Reset verification status
     } catch (error) {
       toast({
         title: "Error",
@@ -343,21 +429,83 @@ const TelegramBotStatus: React.FC = () => {
                       {!status.channelStorageEnabled ? (
                         <div className="grid gap-2">
                           <Label htmlFor="channelId">Channel ID</Label>
-                          <div className="flex space-x-2">
-                            <Input
-                              id="channelId"
-                              value={channelId}
-                              onChange={(e) => setChannelId(e.target.value)}
-                              placeholder="-1001234567890"
-                              disabled={actionLoading}
-                              className="flex-1"
-                            />
+                          <div className="flex flex-col space-y-2">
+                            <div className="flex space-x-2">
+                              <Input
+                                id="channelId"
+                                value={channelId}
+                                onChange={(e) => setChannelId(e.target.value)}
+                                placeholder="-1001234567890"
+                                disabled={actionLoading || verifyingChannel}
+                                className="flex-1"
+                              />
+                              <Button 
+                                onClick={handleVerifyChannel}
+                                disabled={actionLoading || verifyingChannel || !channelId}
+                                size="sm"
+                                variant="outline"
+                                className="whitespace-nowrap"
+                              >
+                                {verifyingChannel ? (
+                                  <>
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    Verifying...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="h-3 w-3 mr-1" />
+                                    Verify Access
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                            
+                            {channelVerificationStatus && (
+                              <div className={`p-2 text-xs rounded ${
+                                channelVerificationStatus.verified 
+                                  ? "bg-green-100 text-green-800 border border-green-200" 
+                                  : "bg-red-100 text-red-800 border border-red-200"
+                              }`}>
+                                <div className="font-medium mb-1 flex items-center">
+                                  {channelVerificationStatus.verified ? (
+                                    <>
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Channel Verified
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertCircle className="h-3 w-3 mr-1" />
+                                      Channel Verification Failed
+                                    </>
+                                  )}
+                                </div>
+                                <div className="text-xs opacity-90">{channelVerificationStatus.message}</div>
+                                
+                                {channelVerificationStatus.correctedId && (
+                                  <div className="mt-1 text-xs opacity-80">
+                                    ID corrected to: <span className="font-mono">{channelVerificationStatus.correctedId}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
                             <Button 
                               onClick={handleEnableChannelStorage}
                               disabled={actionLoading || !channelId}
                               size="sm"
+                              className="mt-2"
                             >
-                              Enable
+                              {actionLoading ? (
+                                <>
+                                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                  Enabling...
+                                </>
+                              ) : (
+                                <>
+                                  <Database className="h-3 w-3 mr-1" />
+                                  Enable Storage
+                                </>
+                              )}
                             </Button>
                           </div>
                         </div>

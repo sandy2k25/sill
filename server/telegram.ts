@@ -1545,21 +1545,46 @@ export class TelegramBot {
    * @param channelId - The ID to verify
    * @returns Promise<{valid: boolean, message: string}> - Result of verification
    */
+  /**
+   * Format channel ID correctly for Telegram API
+   * @param channelId 
+   * @returns Properly formatted channel ID
+   */
+  private formatChannelId(channelId: string): string {
+    // If it's already properly formatted, return as is
+    if (channelId.startsWith('-100') && channelId.length > 5) {
+      return channelId;
+    }
+    
+    // If it's a regular channel ID with just a dash prefix
+    if (channelId.startsWith('-') && !channelId.startsWith('-100')) {
+      return `-100${channelId.substring(1)}`;
+    }
+    
+    // If it's just a numeric ID without any prefix
+    if (/^\d+$/.test(channelId)) {
+      return `-100${channelId}`;
+    }
+    
+    // If it contains the @ symbol (username), we can't format it
+    if (channelId.includes('@')) {
+      return channelId; // Can't convert usernames to IDs
+    }
+    
+    // Default case - return as is
+    return channelId;
+  }
+
   async verifyChannelAccess(channelId: string): Promise<{valid: boolean, message: string, correctedId?: string}> {
     if (!this.bot) {
       return { valid: false, message: "Bot is not active" };
     }
     
     try {
-      // Ensure channel ID has the proper format
-      let formattedChannelId = channelId;
-      if (!channelId.startsWith('-100')) {
-        // If it's just a numeric ID without the -100 prefix, add it
-        if (/^\d+$/.test(channelId)) {
-          formattedChannelId = `-100${channelId}`;
-          console.log(`Reformatted channel ID to: ${formattedChannelId}`);
-        }
-      }
+      // Format the channel ID properly
+      const formattedChannelId = this.formatChannelId(channelId);
+      
+      console.log(`Verifying channel access for ID: ${channelId} (formatted as: ${formattedChannelId})`);
       
       // Attempt to send a test message to verify access
       await this.bot.telegram.sendMessage(
@@ -1575,9 +1600,20 @@ export class TelegramBot {
       };
     } catch (error) {
       console.error('Channel verification error:', error);
+      
+      // More informative error message
+      let errorMessage = error instanceof Error ? error.message : String(error);
+      let troubleshootingSteps = "";
+      
+      if (errorMessage.includes("chat not found")) {
+        troubleshootingSteps = "\n\nPossible causes:\n1. The channel ID is incorrect\n2. The bot is not a member of the channel\n3. The bot needs to be added as an administrator to the channel";
+      } else if (errorMessage.includes("forbidden")) {
+        troubleshootingSteps = "\n\nThe bot doesn't have permission to post in this channel. Make sure the bot is an admin with posting privileges.";
+      }
+      
       return { 
         valid: false, 
-        message: `Channel verification failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Channel verification failed: ${errorMessage}${troubleshootingSteps}`
       };
     }
   }

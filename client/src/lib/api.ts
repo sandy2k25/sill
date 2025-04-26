@@ -149,6 +149,15 @@ export const stopTelegramBot = async (): Promise<void> => {
 };
 
 // Telegram channel storage API
+export const verifyChannelAccess = async (channelId: string): Promise<{valid: boolean, message: string, correctedId?: string}> => {
+  const response = await apiRequest('POST', '/api/telegram/channel/verify', { channelId });
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.message || 'Failed to verify channel access');
+  }
+  return data.data;
+};
+
 export const enableChannelStorage = async (channelId: string): Promise<void> => {
   await apiRequest('POST', '/api/telegram/channel/enable', { channelId });
 };
