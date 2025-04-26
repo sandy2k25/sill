@@ -1,6 +1,6 @@
 import NodeCache from 'node-cache';
 import { logInfo, logError, logWarn, logDebug } from './logger';
-import { InsertVideo, qualityOptionsToStringArray } from '@shared/schema';
+import { InsertVideo, qualityOptionsToStringArray, subtitleOptionsToStringArray, QualityOption, SubtitleOption } from '@shared/schema';
 
 // Cache for storing scraped URLs
 const videoCache = new NodeCache();
@@ -302,6 +302,24 @@ export class WovIeX {
               
               logInfo('Scraper', `Extracted ${this._lastQualityOptions.length} quality options from API`);
               
+              // Look for subtitle data in the API response
+              let subtitleData = undefined;
+              if (apiData.subtitles && Array.isArray(apiData.subtitles) && apiData.subtitles.length > 0) {
+                // Convert subtitle info to our format
+                const subtitleOptions: SubtitleOption[] = apiData.subtitles.map((sub: any) => ({
+                  label: sub.label || 'English',
+                  url: sub.file,
+                  language: sub.label.toLowerCase().includes('english') ? 'en' : 
+                             sub.label.substring(0, 2).toLowerCase()
+                }));
+                
+                // Store for insertion
+                if (subtitleOptions.length > 0) {
+                  logInfo('Scraper', `Extracted ${subtitleOptions.length} subtitle options from API`);
+                  subtitleData = subtitleOptionsToStringArray(subtitleOptions);
+                }
+              }
+              
               if (files[0] && files[0].file) {
                 videoUrl = files[0].file;
                 logInfo('Scraper', `Found video URL from API (highest quality): ${videoUrl}`);
@@ -453,7 +471,8 @@ export class WovIeX {
           quality: 'HD',
           qualityOptions: this._lastQualityOptions.length > 0 ? 
             qualityOptionsToStringArray(this._lastQualityOptions) :
-            undefined
+            undefined,
+          subtitleOptions: subtitleData // Include subtitle data if we found any
         };
         
         // Store in database - always store the base video with the current URL
@@ -890,6 +909,64 @@ export class WovIeX {
         return titleElement ? titleElement.textContent?.trim() : document.title.replace(' - letsembed.cc', '').trim();
       });
       
+      // Look for quality options and subtitle options in the download page
+      const qualityOptions = await page.evaluate(() => {
+        const options: Array<{label: string, url: string}> = [];
+        const qualitySelect = document.querySelector('#videoSelect');
+        if (qualitySelect) {
+          const optionElements = qualitySelect.querySelectorAll('option');
+          optionElements.forEach(opt => {
+            if (opt.value && opt.textContent) {
+              options.push({
+                label: opt.textContent.trim(),
+                url: opt.value
+              });
+            }
+          });
+        }
+        return options;
+      });
+      
+      // Extract subtitle options if available
+      const subtitleOptions = await page.evaluate(() => {
+        const options: Array<{label: string, url: string, language: string}> = [];
+        const subtitleSelect = document.querySelector('#subtitleSelect');
+        if (subtitleSelect) {
+          const optionElements = subtitleSelect.querySelectorAll('option');
+          // Skip first option if it's "No Subtitle"
+          let skipFirst = optionElements.length > 0 && 
+                          optionElements[0].textContent && 
+                          optionElements[0].textContent.includes('No Subtitle');
+          
+          optionElements.forEach((opt, index) => {
+            if (skipFirst && index === 0) return;
+            
+            if (opt.value && opt.textContent) {
+              options.push({
+                label: opt.textContent.trim(),
+                url: opt.value,
+                language: opt.textContent.trim().toLowerCase().includes('english') ? 'en' : 
+                          opt.textContent.trim().substring(0, 2).toLowerCase()
+              });
+            }
+          });
+        }
+        return options;
+      });
+      
+      // Store the quality options for later use
+      if (qualityOptions && qualityOptions.length > 0) {
+        this._lastQualityOptions = qualityOptions;
+        logInfo('Scraper', `Found ${qualityOptions.length} quality options in the download page`);
+      }
+      
+      // If we found subtitle options, store them
+      let subtitleData = undefined;
+      if (subtitleOptions && subtitleOptions.length > 0) {
+        subtitleData = subtitleOptionsToStringArray(subtitleOptions);
+        logInfo('Scraper', `Found ${subtitleOptions.length} subtitle options in the download page`);
+      }
+      
       // Try to find the download button and click it to trigger URL generation
       try {
         // Set up an event listener to capture network requests
@@ -1029,7 +1106,8 @@ export class WovIeX {
         quality: quality || 'HD',
         qualityOptions: this._lastQualityOptions.length > 0 ? 
           qualityOptionsToStringArray(this._lastQualityOptions) : 
-          undefined
+          undefined,
+        subtitleOptions: subtitleData // Use the subtitleData we generated earlier
       };
     } catch (error) {
       logError('Scraper', `Failed to extract video info: ${error instanceof Error ? error.message : String(error)}`);
