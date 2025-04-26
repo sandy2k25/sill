@@ -16,7 +16,12 @@ import { Loader2 } from "lucide-react";
 // Protected route component
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType, path: string }) {
   const { isAuthenticated, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+
+  // If we're already on the auth page, don't redirect again
+  if (location === '/auth') {
+    return <Component />;
+  }
 
   if (isLoading) {
     return (
@@ -27,6 +32,7 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
   }
 
   if (!isAuthenticated) {
+    // Use location state to remember where we came from
     setLocation("/auth");
     return null;
   }

@@ -810,21 +810,60 @@ export class TelegramBot {
   enableChannelStorage(channelId?: string): void {
     console.log('Enabling channel storage with ID:', channelId || 'none provided');
 
-    if (!channelId && !this.channelStorage.channelId) {
-      console.error('Cannot enable channel storage: No channel ID provided and none stored');
-      return;
+    // Validate the channel ID format if one is provided
+    if (channelId) {
+      // Channel IDs should start with a negative sign and contain numbers
+      if (!channelId.startsWith('-') || !/^-\d+$/.test(channelId)) {
+        console.error(`Invalid channel ID format: ${channelId}. Channel IDs should start with '-' followed by numbers.`);
+        return;
+      }
+      this.channelStorage.channelId = channelId;
     }
     
-    if (channelId) {
-      this.channelStorage.channelId = channelId;
+    // Check if we have a valid channel ID
+    if (!this.channelStorage.channelId) {
+      console.error('Cannot enable channel storage: No channel ID provided and none stored');
+      return;
     }
     
     this.channelStorage.enabled = true;
     
     // Verify it was properly enabled
+    const isEnabled = this.isChannelStorageEnabled();
     console.log('Channel storage status:', 
-      this.isChannelStorageEnabled() ? 'Enabled' : 'Not enabled',
+      isEnabled ? 'Enabled' : 'Not enabled',
       'with channel ID:', this.channelStorage.channelId || 'none');
+    
+    // If enabled, try to send a test message
+    if (isEnabled && this.bot && this.isRunning) {
+      console.log('Sending test message to channel to verify access...');
+      this.bot.telegram.sendMessage(this.channelStorage.channelId, 'CHANNEL_STORAGE_TEST: Channel storage enabled successfully')
+        .then(() => {
+          console.log('Test message sent successfully to channel');
+          
+          // Log successful channel connection
+          if (storageInstance) {
+            storageInstance.createLog({
+              level: 'INFO',
+              source: 'Telegram',
+              message: `Connected to Telegram channel with ID: ${this.channelStorage.channelId}`
+            });
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to send test message to channel:', error);
+          console.error('This usually indicates an invalid channel ID or the bot not having access to the channel');
+          
+          // Log the error
+          if (storageInstance) {
+            storageInstance.createLog({
+              level: 'ERROR',
+              source: 'Telegram',
+              message: `Failed to connect to channel: ${error.message}`
+            });
+          }
+        });
+    }
   }
   
   /**
@@ -839,13 +878,31 @@ export class TelegramBot {
    * This method serializes data to JSON and sends it as a message to the configured Telegram channel
    */
   async saveToChannel<T>(key: string, data: T): Promise<boolean> {
-    if (!this.bot || !this.isRunning || !this.isChannelStorageEnabled() || !this.channelStorage.channelId) {
-      console.log('Telegram channel storage not available - not saving data for key:', key);
+    console.log('Attempting to save data to Telegram channel:', {
+      channelId: this.channelStorage.channelId,
+      botActive: !!this.bot && this.isRunning,
+      storageEnabled: this.channelStorage.enabled,
+      isChannelStorageEnabled: this.isChannelStorageEnabled()
+    });
+
+    if (!this.bot || !this.isRunning) {
+      console.log('Telegram bot not available - not saving data for key:', key);
+      return false;
+    }
+    
+    if (!this.isChannelStorageEnabled()) {
+      console.log('Telegram channel storage is disabled - not saving data for key:', key);
+      return false;
+    }
+    
+    if (!this.channelStorage.channelId) {
+      console.log('No channel ID configured - not saving data for key:', key);
       return false;
     }
     
     try {
       const messageText = `DATA:${key}\n${JSON.stringify(data, null, 2)}`;
+      console.log(`Sending message to channel ${this.channelStorage.channelId}`);
       
       // Use sendMessage directly to the channel
       await this.bot.telegram.sendMessage(this.channelStorage.channelId, messageText);
@@ -853,11 +910,21 @@ export class TelegramBot {
       
       return true;
     } catch (error) {
-      console.error(`Failed to save data to Telegram channel: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to save data to Telegram channel: ${errorMessage}`);
+      
+      // Provide detailed diagnostic info
+      console.error('Channel storage failure details:', {
+        channelId: this.channelStorage.channelId,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        errorStack: error instanceof Error ? error.stack : 'No stack trace'
+      });
       
       // Disable channel storage after consistent failures
       if (error instanceof Error && error.message && 
-          (error.message.includes('chat not found') || error.message.includes('Bad Request'))) {
+          (error.message.includes('chat not found') || 
+           error.message.includes('Bad Request') || 
+           error.message.includes('chat_id is undefined'))) {
         console.log('Disabling Telegram channel storage due to persistent errors');
         this.disableChannelStorage();
       }
@@ -866,7 +933,7 @@ export class TelegramBot {
         storageInstance.createLog({
           level: 'ERROR',
           source: 'Telegram',
-          message: `Failed to save data to channel: ${error instanceof Error ? error.message : String(error)}`
+          message: `Failed to save data to channel: ${errorMessage}`
         });
       }
       
