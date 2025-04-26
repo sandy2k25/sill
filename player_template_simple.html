@@ -45,7 +45,7 @@
       font-family: Arial, sans-serif;
       font-weight: bold;
       font-size: 16px;
-      z-index: 99;
+      z-index: 9999; /* Much higher z-index to stay above fullscreen */
       background-color: rgba(0, 0, 0, 0.5);
       padding: 5px 10px;
       border-radius: 5px;
@@ -61,7 +61,7 @@
       font-family: Arial, sans-serif;
       font-weight: bold;
       font-size: 16px;
-      z-index: 99;
+      z-index: 9999; /* Much higher z-index to stay above fullscreen */
       background-color: rgba(0, 0, 0, 0.5);
       padding: 5px 10px;
       border-radius: 5px;
@@ -81,12 +81,19 @@
       font-family: Arial, sans-serif;
       font-weight: bold;
       font-size: 14px;
-      z-index: 99;
+      z-index: 9999; /* Much higher z-index to stay above fullscreen */
       background-color: rgba(0, 0, 0, 0.5);
       padding: 3px 8px;
       border-radius: 5px;
       pointer-events: none;
       text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    }
+    
+    /* Ensure elements stay visible in fullscreen */
+    .plyr--fullscreen-active .wovie-logo,
+    .plyr--fullscreen-active .video-title,
+    .plyr--fullscreen-active .quality-indicator {
+      display: block !important;
     }
     .subtitle-selector {
       position: absolute;
@@ -133,11 +140,7 @@
   <div id="qualityIndicator" class="quality-indicator">${video.selectedQuality ? video.selectedQuality.label : 'Auto'}</div>
   <video id="player" playsinline controls>
     <source src="${video.url}" type="video/mp4">
-    ${video.subtitleOptions && video.subtitleOptions.length ? 
-      video.subtitleOptions.map((sub, index) => 
-        `<track kind="captions" label="${sub.label || 'Unknown'}" srclang="${sub.language || 'en'}" src="${sub.url}" ${index === 0 ? 'default' : ''}>`
-      ).join('\n    ') 
-      : '<!-- No subtitles available -->'}
+    <!-- Static subtitle tracks will be replaced dynamically via JavaScript -->
   </video>
   <!-- Message container for player notifications -->
   <div id="message" class="player-message"></div>
@@ -382,77 +385,84 @@
       });
       
       // Parse subtitle options from the server and add them as tracks
-      let subtitleOptions = [];
-      let savedSubtitleUrl = localStorage.getItem('wovie_preferred_subtitle');
-      
-      try {
-        subtitleOptions = ${JSON.stringify(video.subtitleOptions || [])};
+      function setupSubtitles() {
+        console.log('Setting up subtitles');
         
-        // Convert strings to objects if needed
-        if (subtitleOptions.length > 0 && typeof subtitleOptions[0] === 'string') {
-          subtitleOptions = subtitleOptions.map(optStr => {
-            try {
-              return JSON.parse(optStr);
-            } catch (e) {
-              console.error('Failed to parse subtitle option:', e);
-              return null;
-            }
-          }).filter(opt => opt !== null);
-        }
+        // Clear existing tracks first
+        const existingTracks = playerElement.querySelectorAll('track');
+        existingTracks.forEach(track => track.remove());
         
-        // Add subtitle tracks to the video element
-        if (subtitleOptions.length > 0) {
-          // Add tracks directly to the video element for Plyr to pick up
-          subtitleOptions.forEach((opt, index) => {
-            // Process subtitle URLs to ensure all security parameters are preserved
-            if (opt.url) {
-              // Check for common security parameters in CDN URLs
-              const hasExpires = opt.url.includes('Expires=') || opt.url.includes('expires=');
-              const hasSignature = opt.url.includes('Signature=') || opt.url.includes('signature=');
-              const hasKeyPair = opt.url.includes('Key-Pair-Id=');
-              const hasKeyName = opt.url.includes('KeyName=');
-              
-              // Log any potential issues with parameters
-              if (!hasExpires) {
-                console.log(`[${opt.label}] Subtitle missing Expires parameter`);
-              }
-              
-              if (!hasSignature) {
-                console.log(`[${opt.label}] Subtitle missing Signature parameter`);
-              }
-              
-              if (!hasKeyPair && !hasKeyName) {
-                console.log(`[${opt.label}] Subtitle missing Key-Pair-Id or KeyName parameter`);
-              }
-              
-              // Fix common encoding issues in URLs that might break playback
-              // Replace encoded ampersands if they somehow got into the URL
-              if (opt.url.includes('&amp;')) {
-                console.log(`[${opt.label}] Fixing encoded ampersands in subtitle URL`);
-                opt.url = opt.url.replace(/&amp;/g, '&');
-              }
+        // Get saved subtitle preference
+        const savedSubtitleUrl = localStorage.getItem('wovie_preferred_subtitle');
+        
+        // Define our subtitle options
+        const subtitleData = ${JSON.stringify(video.subtitleOptions || [])};
+        let subtitleOptions = [];
+        
+        // Process subtitle data
+        try {
+          if (subtitleData && Array.isArray(subtitleData) && subtitleData.length > 0) {
+            // Convert strings to objects if needed
+            if (typeof subtitleData[0] === 'string') {
+              subtitleData.forEach(optStr => {
+                try {
+                  const parsedOption = JSON.parse(optStr);
+                  if (parsedOption && parsedOption.url && parsedOption.label) {
+                    subtitleOptions.push(parsedOption);
+                  }
+                } catch (e) {
+                  console.error('Failed to parse subtitle option:', e);
+                }
+              });
+            } else {
+              subtitleOptions = subtitleData.filter(opt => opt && opt.url && opt.label);
             }
-            
-            const track = document.createElement('track');
-            track.kind = 'captions';
-            track.label = opt.label || 'Unknown';
-            track.srclang = opt.language || 'en';
-            track.src = opt.url;
-            
-            // Set default if this is the saved preference
-            if (savedSubtitleUrl === opt.url) {
-              track.default = true;
-            }
-            
-            // Add to video
-            playerElement.appendChild(track);
-          });
+          }
           
-          console.log(`Added ${subtitleOptions.length} subtitle tracks to video element`);
+          console.log(`Found ${subtitleOptions.length} subtitle options`);
+          
+          // Add subtitle tracks to the video element
+          if (subtitleOptions.length > 0) {
+            subtitleOptions.forEach((subtitle, index) => {
+              try {
+                // Fix any URL encoding issues
+                let subtitleUrl = subtitle.url;
+                if (subtitleUrl.includes('&amp;')) {
+                  subtitleUrl = subtitleUrl.replace(/&amp;/g, '&');
+                }
+                
+                // Create and add track element
+                const track = document.createElement('track');
+                track.kind = 'captions';
+                track.label = subtitle.label || 'Unknown';
+                track.srclang = subtitle.language || 'en';
+                track.src = subtitleUrl;
+                
+                // Set default if this is the first track or matches saved preference
+                if (index === 0 || savedSubtitleUrl === subtitleUrl) {
+                  track.default = true;
+                }
+                
+                // Add to video element
+                playerElement.appendChild(track);
+                console.log(`Added subtitle track: ${subtitle.label}`);
+              } catch (err) {
+                console.error(`Error adding subtitle track ${subtitle.label}:`, err);
+              }
+            });
+            
+            // Show message about subtitle availability
+            if (subtitleOptions.length > 0) {
+              showMessage(`${subtitleOptions.length} subtitle tracks available`, 3000);
+            }
+          }
+        } catch (e) {
+          console.error('Error setting up subtitles:', e);
         }
-      } catch (e) {
-        console.error('Error processing subtitle options:', e);
       }
+      
+      // Set up subtitles after a short delay to ensure player is initialized
+      setTimeout(setupSubtitles, 1000);
       
       // Auto-play when loaded
       player.on('ready', () => {
@@ -490,6 +500,26 @@
             controlsElement.style.transform = "none";
           }
         }, 1000);
+      });
+      
+      // Handle fullscreen changes to ensure logo, title, and quality indicator remain visible
+      player.on('enterfullscreen', () => {
+        console.log('Entering fullscreen mode');
+        
+        // Get the fullscreen container
+        const fullscreenContainer = document.querySelector('.plyr--fullscreen');
+        
+        if (fullscreenContainer) {
+          // Clone the logo, title and quality indicator and append them to the fullscreen container
+          const logoElement = document.querySelector('.wovie-logo');
+          const titleElement = document.querySelector('.video-title');
+          const qualityElement = document.getElementById('qualityIndicator');
+          
+          // Make sure these elements are visible in fullscreen
+          if (logoElement) logoElement.style.zIndex = "9999";
+          if (titleElement) titleElement.style.zIndex = "9999";
+          if (qualityElement) qualityElement.style.zIndex = "9999";
+        }
       });
       
       // Error handling
