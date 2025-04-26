@@ -403,7 +403,8 @@ export class WovIeX {
             }
           }
 
-          // Check for quality options in select element
+          // Check for quality options in select element - first try with videoSelect id (older format)
+          let foundQualityOptions = false;
           const selectMatch = embedHtml.match(/<select[^>]*id=["']videoSelect["'][^>]*>([\s\S]*?)<\/select>/i);
           if (selectMatch && selectMatch[1]) {
             const selectContent = selectMatch[1];
@@ -440,14 +441,135 @@ export class WovIeX {
                 videoUrl = qualityOptions[0].url;
                 logInfo('Scraper', `Using highest quality option (${qualityOptions[0].label}) as main video URL`);
               }
+              
+              foundQualityOptions = true;
+            }
+          } 
+          
+          // New format (2025): Look for select with name "quality" (Ra.One type interface)
+          if (!foundQualityOptions) {
+            const qualitySelectMatch = embedHtml.match(/<select[^>]*name=["']quality["'][^>]*>([\s\S]*?)<\/select>/i);
+            if (qualitySelectMatch && qualitySelectMatch[1]) {
+              const selectContent = qualitySelectMatch[1];
+              const optionRegex = /<option[^>]*value=["']([^"']+)["'][^>]*>\s*([^<]*?)\s*<\/option>/gi;
+              let optionMatch;
+              const qualityOptions = [];
+              
+              while ((optionMatch = optionRegex.exec(selectContent)) !== null) {
+                const url = optionMatch[1];
+                const label = optionMatch[2].trim();
+                
+                if (url && label) {
+                  qualityOptions.push({
+                    label,
+                    url
+                  });
+                  logInfo('Scraper', `Found quality option (new format): ${label} -> ${url.substring(0, 50)}...`);
+                }
+              }
+              
+              if (qualityOptions.length > 0) {
+                // Sort by quality (try to get highest)
+                qualityOptions.sort((a, b) => {
+                  const aNum = parseInt(a.label.replace(/[^\d]/g, '')) || 0;
+                  const bNum = parseInt(b.label.replace(/[^\d]/g, '')) || 0;
+                  return bNum - aNum;
+                });
+                
+                // Store quality options for later use
+                this._lastQualityOptions = qualityOptions;
+                
+                // If we don't have a video URL yet, use the highest quality
+                if (!videoUrl && qualityOptions[0]) {
+                  videoUrl = qualityOptions[0].url;
+                  logInfo('Scraper', `Using highest quality option (new format) (${qualityOptions[0].label}) as main video URL`);
+                }
+              }
+            }
+          }
+          
+          // Look for subtitle options in a select element (both name="subtitle" and id="subtitleSelect")
+          const subtitleSelectMatch = embedHtml.match(/<select[^>]*(?:name=["']subtitle["']|id=["']subtitleSelect["'])[^>]*>([\s\S]*?)<\/select>/i);
+          if (subtitleSelectMatch && subtitleSelectMatch[1]) {
+            const selectContent = subtitleSelectMatch[1];
+            const optionRegex = /<option[^>]*value=["']([^"']+)["'][^>]*>\s*([^<]*?)\s*<\/option>/gi;
+            let optionMatch;
+            const subtitleOptions = [];
+            
+            while ((optionMatch = optionRegex.exec(selectContent)) !== null) {
+              const url = optionMatch[1];
+              const label = optionMatch[2].trim();
+              
+              if (url && label && url !== "no" && url !== "") {
+                let language = 'en'; // Default language code
+                
+                // Try to determine language code from the label
+                if (label.toLowerCase().includes('english')) {
+                  language = 'en';
+                } else if (label.toLowerCase().includes('arabic') || label.includes('اَلْعَرَبِيَّةُ')) {
+                  language = 'ar';
+                } else if (label.toLowerCase().includes('bengali') || label.includes('বাংলা')) {
+                  language = 'bn';
+                } else if (label.toLowerCase().includes('chinese') || label.includes('中文')) {
+                  language = 'zh';
+                } else if (label.toLowerCase().includes('french') || label.toLowerCase().includes('français')) {
+                  language = 'fr';
+                } else if (label.toLowerCase().includes('indonesian')) {
+                  language = 'id';
+                } else if (label.toLowerCase().includes('punjabi') || label.includes('ਪੰਜਾਬੀ')) {
+                  language = 'pa';
+                } else if (label.toLowerCase().includes('portuguese') || label.includes('português')) {
+                  language = 'pt';
+                } else if (label.toLowerCase().includes('russian') || label.includes('русский')) {
+                  language = 'ru';
+                } else if (label.toLowerCase().includes('urdu') || label.includes('اُردُو')) {
+                  language = 'ur';
+                } else if (label.toLowerCase().includes('filipino')) {
+                  language = 'fil';
+                }
+                
+                subtitleOptions.push({
+                  label,
+                  url,
+                  language
+                });
+                logInfo('Scraper', `Found subtitle option: ${label} (${language}) -> ${url.substring(0, 50)}...`);
+              }
+            }
+            
+            if (subtitleOptions.length > 0) {
+              // Store subtitle options for later use
+              this._lastSubtitleOptions = subtitleOptions;
             }
           }
         }
         if (!videoUrl) {
+          // Check for download button onclick handler
           const onClickMatch = embedHtml.match(/download[^>]+onclick=["'](?:window\.open\()?["']?(https?:\/\/[^"'\)]+)["']?\)?["']/i);
           if (onClickMatch && onClickMatch[1]) {
             videoUrl = onClickMatch[1];
             logInfo('Scraper', `Found URL in download button onclick: ${videoUrl}`);
+          }
+          
+          // Check for downloadFrame setup (Ra.One interface)
+          if (!videoUrl) {
+            const downloadFrameMatch = embedHtml.match(/frame\.src\s*=\s*videoUrl/i);
+            if (downloadFrameMatch) {
+              logInfo('Scraper', `Found downloadFrame setup, extracting from videoSelect`);
+              
+              // Get first value from videoSelect if we haven't parsed quality options yet
+              if (this._lastQualityOptions.length === 0) {
+                const videoSelectValueMatch = embedHtml.match(/<option[^>]*value=["']([^"']+)["'][^>]*>/i);
+                if (videoSelectValueMatch && videoSelectValueMatch[1]) {
+                  videoUrl = videoSelectValueMatch[1];
+                  logInfo('Scraper', `Found videoSelect first value as URL: ${videoUrl.substring(0, 50)}...`);
+                }
+              } else {
+                // Use highest quality from already parsed options
+                videoUrl = this._lastQualityOptions[0].url;
+                logInfo('Scraper', `Using highest quality from parsed options: ${videoUrl.substring(0, 50)}...`);
+              }
+            }
           }
         }
         

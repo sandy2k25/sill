@@ -211,7 +211,7 @@
       // Add subtitle tracks from the video data if available
       const hasSubtitles = ${video.subtitleOptions ? 'true' : 'false'};
       // Handle both array of strings (from DB) and array of objects
-      let rawSubtitleData = ${JSON.stringify(video.subtitleOptions || [])};
+      const rawSubtitleData = ${JSON.stringify(video.subtitleOptions || [])};
       let subtitleData = [];
       
       if (Array.isArray(rawSubtitleData)) {
@@ -276,7 +276,7 @@
       });
       
       // Get quality options from the video data
-      let rawQualityOptions = ${JSON.stringify(video.qualityOptions || [])};
+      const rawQualityOptions = ${JSON.stringify(video.qualityOptions || [])};
       let qualityOptions = [];
       
       // Handle both array of strings (from DB) and array of objects
