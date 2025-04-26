@@ -366,6 +366,14 @@ export class WovIeX {
               logInfo('Scraper', `Found CloudFront URL: ${videoUrl}`);
               break;
             }
+
+            // Look for Hakuna Matata URLs (hakunaymatata.com)
+            const hakunaMatch = script.match(/["'](https?:\/\/[^"']+hakunaymatata\.com\/resource\/[^"']+\.mp4[^"']*(?:Expires|expires)=[^"'&]+[^"']*)["']/i);
+            if (hakunaMatch && hakunaMatch[1]) {
+              videoUrl = hakunaMatch[1].replace(/\\([\/:~])/g, '$1');
+              logInfo('Scraper', `Found hakunaymatata URL: ${videoUrl}`);
+              break;
+            }
             
             // Check for object structure with file property
             const objectMatch = script.match(/file:\s*["']([^"']+\.mp4[^"']*)["']/i);
@@ -391,6 +399,46 @@ export class WovIeX {
             if (mp4Match && mp4Match[1]) {
               videoUrl = mp4Match[1];
               logInfo('Scraper', `Found generic mp4 URL: ${videoUrl}`);
+            }
+          }
+
+          // Check for quality options in select element
+          const selectMatch = embedHtml.match(/<select[^>]*id=["']videoSelect["'][^>]*>([\s\S]*?)<\/select>/i);
+          if (selectMatch && selectMatch[1]) {
+            const selectContent = selectMatch[1];
+            const optionRegex = /<option[^>]*value=["']([^"']+)["'][^>]*>\s*([^<]*?)\s*<\/option>/gi;
+            let optionMatch;
+            const qualityOptions = [];
+            
+            while ((optionMatch = optionRegex.exec(selectContent)) !== null) {
+              const url = optionMatch[1];
+              const label = optionMatch[2].trim();
+              
+              if (url && label) {
+                qualityOptions.push({
+                  label,
+                  url
+                });
+                logInfo('Scraper', `Found quality option: ${label} -> ${url.substring(0, 50)}...`);
+              }
+            }
+            
+            if (qualityOptions.length > 0) {
+              // Sort by quality (try to get highest)
+              qualityOptions.sort((a, b) => {
+                const aNum = parseInt(a.label.replace(/[^\d]/g, '')) || 0;
+                const bNum = parseInt(b.label.replace(/[^\d]/g, '')) || 0;
+                return bNum - aNum;
+              });
+              
+              // Store quality options for later use
+              this._lastQualityOptions = qualityOptions;
+              
+              // If we don't have a video URL yet, use the highest quality
+              if (!videoUrl && qualityOptions[0]) {
+                videoUrl = qualityOptions[0].url;
+                logInfo('Scraper', `Using highest quality option (${qualityOptions[0].label}) as main video URL`);
+              }
             }
           }
         }
