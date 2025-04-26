@@ -300,6 +300,8 @@ export class TelegramStorage implements IStorage {
       title: insertVideo.title || null,
       url: insertVideo.url,
       quality: insertVideo.quality || null,
+      qualityOptions: insertVideo.qualityOptions || null,
+      subtitleOptions: insertVideo.subtitleOptions || null,
       scrapedAt: now,
       lastAccessed: now,
       accessCount: 0
@@ -318,7 +320,7 @@ export class TelegramStorage implements IStorage {
     return video;
   }
   
-  async updateVideo(videoId: string, url: string): Promise<Video | undefined> {
+  async updateVideo(videoId: string, url: string, qualityOptions?: any, subtitleOptions?: any): Promise<Video | undefined> {
     await this.ensureDataLoaded();
     const video = await this.getVideoByVideoId(videoId);
     if (!video) return undefined;
@@ -326,6 +328,8 @@ export class TelegramStorage implements IStorage {
     const updatedVideo = { 
       ...video, 
       url,
+      qualityOptions: qualityOptions || video.qualityOptions,
+      subtitleOptions: subtitleOptions || video.subtitleOptions,
       lastAccessed: new Date()
     };
     

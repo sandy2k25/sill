@@ -159,7 +159,7 @@
     <div class="quality-selector">
       <select id="qualitySelect">
         <option value="${video.url}" selected>${video.quality || 'HD'}</option>
-        ${video.qualityOptions ? video.qualityOptions.map(opt => `<option value="${opt.url}">${opt.label}</option>`).join('') : ''}
+        <!-- Quality options will be populated by JavaScript -->
       </select>
     </div>
     <!-- Removed separate subtitle selector as it's now in the settings menu -->
@@ -210,7 +210,26 @@
       
       // Add subtitle tracks from the video data if available
       const hasSubtitles = ${video.subtitleOptions ? 'true' : 'false'};
-      const subtitleData = JSON.parse('${JSON.stringify(video.subtitleOptions || [])}');
+      // Handle both array of strings (from DB) and array of objects
+      let rawSubtitleData = ${JSON.stringify(video.subtitleOptions || [])};
+      let subtitleData = [];
+      
+      if (Array.isArray(rawSubtitleData)) {
+        if (rawSubtitleData.length > 0 && typeof rawSubtitleData[0] === 'string') {
+          // Convert string array to subtitle options
+          subtitleData = rawSubtitleData.map(str => {
+            try {
+              return JSON.parse(str);
+            } catch (e) {
+              console.error('Failed to parse subtitle option:', e);
+              return null;
+            }
+          }).filter(opt => opt !== null);
+        } else {
+          // Already an array of objects
+          subtitleData = rawSubtitleData;
+        }
+      }
       
       if (hasSubtitles && subtitleData.length > 0) {
         subtitleData.forEach(subtitle => {
@@ -256,12 +275,50 @@
         captions: { active: true, language: 'auto', update: true }
       });
       
+      // Get quality options from the video data
+      let rawQualityOptions = ${JSON.stringify(video.qualityOptions || [])};
+      let qualityOptions = [];
+      
+      // Handle both array of strings (from DB) and array of objects
+      if (Array.isArray(rawQualityOptions)) {
+        if (rawQualityOptions.length > 0 && typeof rawQualityOptions[0] === 'string') {
+          // Convert string array to quality options
+          qualityOptions = rawQualityOptions.map(str => {
+            try {
+              return JSON.parse(str);
+            } catch (e) {
+              console.error('Failed to parse quality option:', e);
+              return null;
+            }
+          }).filter(opt => opt !== null);
+        } else {
+          // Already an array of objects
+          qualityOptions = rawQualityOptions;
+        }
+      }
+      
       // Set the source after initializing
       player.source = initialSource;
       
       // Handle quality selection
       const qualitySelect = document.getElementById('qualitySelect');
       const qualityBadge = document.getElementById('qualityBadge');
+      
+      // Populate quality options dropdown
+      if (qualitySelect && qualityOptions && qualityOptions.length > 0) {
+        // Clear existing options except the first one (default)
+        while (qualitySelect.options.length > 1) {
+          qualitySelect.remove(1);
+        }
+        
+        // Add the quality options
+        qualityOptions.forEach(opt => {
+          const option = document.createElement('option');
+          option.value = opt.url;
+          option.textContent = opt.label;
+          qualitySelect.appendChild(option);
+        });
+      }
       
       if (qualitySelect) {
         qualitySelect.addEventListener('change', function() {

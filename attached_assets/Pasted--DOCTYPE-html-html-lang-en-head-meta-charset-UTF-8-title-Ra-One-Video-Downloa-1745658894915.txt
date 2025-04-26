@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ra.One | Video Downloader</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(145deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="text-white flex items-center justify-center p-4">
+    <div class="bg-[#1f102c] max-w-4xl w-full rounded-2xl shadow-lg overflow-hidden flex flex-col md:flex-row">
+        <div class="md:w-1/2">
+            <img src="https://image.tmdb.org/t/p/w500/qwC3rbgCI0frJpRxVm74Ak3ktpU.jpg" alt="Ra.One" class="w-full h-full object-cover">
+        </div>
+        <div class="p-6 md:w-1/2 flex flex-col justify-between space-y-6">
+            <div>
+                <h1 class="text-3xl font-bold text-purple-300 mb-4">Ra.One</h1>
+                <p class="text-sm text-gray-300 mb-6">When the titular antagonist of an action game takes on physical form, it&#039;s up to the game&#039;s less powerful protagonist to save the world.</p>
+
+                <div class="mb-4">
+                    <label class="block mb-2 text-purple-400">Select Quality</label>
+                    <select id="videoSelect" class="w-full bg-[#2a1e3b] text-white rounded-lg p-2">
+                                                    <option value="https://vgorigin.hakunaymatata.com/resource/d6bd268dd32fb4a5d173cad25931ffdb.mp4?Expires=1746866914&KeyName=wefeed&Signature=o7Zrfl8qGkH_SI5mRf63VMX1PIoQhayb6DqximFANhys0HPvmQHbRKmYmVupBR55304j0lBXOk9Wd96bK2B8Dw">
+                                360p                            </option>
+                                                    <option value="https://vgorigin.hakunaymatata.com/resource/ae92b8f9f4f1e51f1a8544720b469df2.mp4?Expires=1746866914&KeyName=wefeed&Signature=iAYdBTMBtuAZgPa8zT3nnIBb9rxt0T4hTqVCQ2o0FRcR7DFGtvF89Rk6uaFBM2zCW-2FJPysjNN5Iru2JfXlCg">
+                                480p                            </option>
+                                                    <option value="https://macdn.hakunaymatata.com/resource/c538665bdd3f572e3217de912e486faa.mp4?Expires=1746864348&Signature=Mz07qT2OFYhBTsayJhr2E7YxF~MRw0bR2Gy5eAHOXoAZM1WHRuBU22fkRFUsA71jvOIwmtjLHrfQ5l016XsgnJZLLEcQMDfa6mOpJ5YRIE6cLOlSdZYNVikx9OyVdq~m7E0q4AjtATbWZkQo91C6oqy8dIIJZgznzruEoNR7sGfWA4TM4~6pLZ2s67ZTYoG205IohFPHBMbwczIKORAZoA4vYctI-s~k~R9Ne0VgOFLoF7XtPJXkd94UwHMBnAnqt-5q9TeGPw-0XTXiUeTU2MUaJt4Ve7VJl4YhxLxDlIVtF1qyAIL6vrdXOdVMDU0rVITZ9maOFMjYM4IxB7gs7w__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                720p                            </option>
+                                            </select>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block mb-2 text-purple-400">Select Subtitle (Optional)</label>
+                    <select id="subtitleSelect" class="w-full bg-[#2a1e3b] text-white rounded-lg p-2">
+                        <option value="">No Subtitle</option>
+                                                    <option value="https://cacdn.hakunaymatata.com/subtitle/467a44891288603bc9fc21bcc63c2e14.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9zdWJ0aXRsZS8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=Kyr-hg8iMkrxXIZo9FM0oFfe8R9oIPTozMXAz1xU3IbmSAmMW~YMy6pFRGk4pjlpJNpfGopk~5t-3SE1enbBGH6PMdn1CcaPmYihwNUW7fxxdy74iTjZzYM16wYR-VJ22FcwxxgACMLLKcaWEDAshUNnD6Kc0QhbeMwpQFnxpuKCRY8faiPERktDYwZuyDnQd5WWDQP9eG0DufZsab1EFLRYFWTZyfLVhntw41AUAbwEov~eV2TH4tA7GxscKVlgviGDCMGlbiYqvq2LwUQozrM~QIKk~TS98Z~BjHI-kosbrC6RQWN1AkTAf-gf9fomUDZx7sAjl5CCorL6Oz8-cA__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                اَلْعَرَبِيَّةُ                            </option>
+                                                    <option value="https://cacdn.hakunaymatata.com/msubt/06cae1b36456750286ecb7e9d954fc48.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9tc3VidC8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=pfV1Y6J0RoM5qvL1a1tZiUNAuwcZwoysdrO4Rlt1t1GHqb-Ock~XQszEnbUxY8liJzcnhLgGl4VksZ6FbyHBGnD-t3Wjn8ZzAuCAf58wTc4heaC1r9ipAfBgDdY3ceRjJqrpA36JflMvLXn9~xfs2-YODaAA5BZeLHDt2lCCfqJXlXoazRnxHZJAxYB4N~2h-4BmvjsWVppSfFj-LtxR2pLcbub3vDko3lw4RdOuXrGtO03QtjH3FhZ0CjwZEp0Y94cyx666BNNMArQh6FnA7T2HjediS8RJ26yBDpZwrTblG0~HtCyBKvZ2Y1pWcla-ANyU7AAej3DJGk-hHJgsMw__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                বাংলা                            </option>
+                                                    <option value="https://cacdn.hakunaymatata.com/subtitle/d59ecd93cc31d954af91a4d49d417df5.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9zdWJ0aXRsZS8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=Kyr-hg8iMkrxXIZo9FM0oFfe8R9oIPTozMXAz1xU3IbmSAmMW~YMy6pFRGk4pjlpJNpfGopk~5t-3SE1enbBGH6PMdn1CcaPmYihwNUW7fxxdy74iTjZzYM16wYR-VJ22FcwxxgACMLLKcaWEDAshUNnD6Kc0QhbeMwpQFnxpuKCRY8faiPERktDYwZuyDnQd5WWDQP9eG0DufZsab1EFLRYFWTZyfLVhntw41AUAbwEov~eV2TH4tA7GxscKVlgviGDCMGlbiYqvq2LwUQozrM~QIKk~TS98Z~BjHI-kosbrC6RQWN1AkTAf-gf9fomUDZx7sAjl5CCorL6Oz8-cA__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                English                            </option>
+                                                    <option value="https://cacdn.hakunaymatata.com/msubt/6b3c2a5c5c2d440d446ef0d85928c769.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9tc3VidC8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=pfV1Y6J0RoM5qvL1a1tZiUNAuwcZwoysdrO4Rlt1t1GHqb-Ock~XQszEnbUxY8liJzcnhLgGl4VksZ6FbyHBGnD-t3Wjn8ZzAuCAf58wTc4heaC1r9ipAfBgDdY3ceRjJqrpA36JflMvLXn9~xfs2-YODaAA5BZeLHDt2lCCfqJXlXoazRnxHZJAxYB4N~2h-4BmvjsWVppSfFj-LtxR2pLcbub3vDko3lw4RdOuXrGtO03QtjH3FhZ0CjwZEp0Y94cyx666BNNMArQh6FnA7T2HjediS8RJ26yBDpZwrTblG0~HtCyBKvZ2Y1pWcla-ANyU7AAej3DJGk-hHJgsMw__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                Filipino                            </option>
+                                                    <option value="https://cacdn.hakunaymatata.com/msubt/3b734b9e6374eee4de7c7c9f89325306.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9tc3VidC8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=pfV1Y6J0RoM5qvL1a1tZiUNAuwcZwoysdrO4Rlt1t1GHqb-Ock~XQszEnbUxY8liJzcnhLgGl4VksZ6FbyHBGnD-t3Wjn8ZzAuCAf58wTc4heaC1r9ipAfBgDdY3ceRjJqrpA36JflMvLXn9~xfs2-YODaAA5BZeLHDt2lCCfqJXlXoazRnxHZJAxYB4N~2h-4BmvjsWVppSfFj-LtxR2pLcbub3vDko3lw4RdOuXrGtO03QtjH3FhZ0CjwZEp0Y94cyx666BNNMArQh6FnA7T2HjediS8RJ26yBDpZwrTblG0~HtCyBKvZ2Y1pWcla-ANyU7AAej3DJGk-hHJgsMw__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                Français                            </option>
+                                                    <option value="https://cacdn.hakunaymatata.com/subtitle/d9bb32cf1ab55caec0027b983b61ea11.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9zdWJ0aXRsZS8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=Kyr-hg8iMkrxXIZo9FM0oFfe8R9oIPTozMXAz1xU3IbmSAmMW~YMy6pFRGk4pjlpJNpfGopk~5t-3SE1enbBGH6PMdn1CcaPmYihwNUW7fxxdy74iTjZzYM16wYR-VJ22FcwxxgACMLLKcaWEDAshUNnD6Kc0QhbeMwpQFnxpuKCRY8faiPERktDYwZuyDnQd5WWDQP9eG0DufZsab1EFLRYFWTZyfLVhntw41AUAbwEov~eV2TH4tA7GxscKVlgviGDCMGlbiYqvq2LwUQozrM~QIKk~TS98Z~BjHI-kosbrC6RQWN1AkTAf-gf9fomUDZx7sAjl5CCorL6Oz8-cA__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                Indonesian                            </option>
+                                                    <option value="https://cacdn.hakunaymatata.com/msubt/1fcacddbac05b98a0c6fc1379c53c326.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9tc3VidC8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=pfV1Y6J0RoM5qvL1a1tZiUNAuwcZwoysdrO4Rlt1t1GHqb-Ock~XQszEnbUxY8liJzcnhLgGl4VksZ6FbyHBGnD-t3Wjn8ZzAuCAf58wTc4heaC1r9ipAfBgDdY3ceRjJqrpA36JflMvLXn9~xfs2-YODaAA5BZeLHDt2lCCfqJXlXoazRnxHZJAxYB4N~2h-4BmvjsWVppSfFj-LtxR2pLcbub3vDko3lw4RdOuXrGtO03QtjH3FhZ0CjwZEp0Y94cyx666BNNMArQh6FnA7T2HjediS8RJ26yBDpZwrTblG0~HtCyBKvZ2Y1pWcla-ANyU7AAej3DJGk-hHJgsMw__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                ਪੰਜਾਬੀ                            </option>
+                                                    <option value="https://cacdn.hakunaymatata.com/msubt/b72a36d99cb21fe08c980677cac84481.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9tc3VidC8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=pfV1Y6J0RoM5qvL1a1tZiUNAuwcZwoysdrO4Rlt1t1GHqb-Ock~XQszEnbUxY8liJzcnhLgGl4VksZ6FbyHBGnD-t3Wjn8ZzAuCAf58wTc4heaC1r9ipAfBgDdY3ceRjJqrpA36JflMvLXn9~xfs2-YODaAA5BZeLHDt2lCCfqJXlXoazRnxHZJAxYB4N~2h-4BmvjsWVppSfFj-LtxR2pLcbub3vDko3lw4RdOuXrGtO03QtjH3FhZ0CjwZEp0Y94cyx666BNNMArQh6FnA7T2HjediS8RJ26yBDpZwrTblG0~HtCyBKvZ2Y1pWcla-ANyU7AAej3DJGk-hHJgsMw__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                Português                            </option>
+                                                    <option value="https://cacdn.hakunaymatata.com/msubt/ff47b06364c02f8bd423bf8810387e52.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9tc3VidC8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=pfV1Y6J0RoM5qvL1a1tZiUNAuwcZwoysdrO4Rlt1t1GHqb-Ock~XQszEnbUxY8liJzcnhLgGl4VksZ6FbyHBGnD-t3Wjn8ZzAuCAf58wTc4heaC1r9ipAfBgDdY3ceRjJqrpA36JflMvLXn9~xfs2-YODaAA5BZeLHDt2lCCfqJXlXoazRnxHZJAxYB4N~2h-4BmvjsWVppSfFj-LtxR2pLcbub3vDko3lw4RdOuXrGtO03QtjH3FhZ0CjwZEp0Y94cyx666BNNMArQh6FnA7T2HjediS8RJ26yBDpZwrTblG0~HtCyBKvZ2Y1pWcla-ANyU7AAej3DJGk-hHJgsMw__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                Русский                            </option>
+                                                    <option value="https://cacdn.hakunaymatata.com/msubt/bbedf8bd673c63436629d338150e7c03.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9tc3VidC8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=pfV1Y6J0RoM5qvL1a1tZiUNAuwcZwoysdrO4Rlt1t1GHqb-Ock~XQszEnbUxY8liJzcnhLgGl4VksZ6FbyHBGnD-t3Wjn8ZzAuCAf58wTc4heaC1r9ipAfBgDdY3ceRjJqrpA36JflMvLXn9~xfs2-YODaAA5BZeLHDt2lCCfqJXlXoazRnxHZJAxYB4N~2h-4BmvjsWVppSfFj-LtxR2pLcbub3vDko3lw4RdOuXrGtO03QtjH3FhZ0CjwZEp0Y94cyx666BNNMArQh6FnA7T2HjediS8RJ26yBDpZwrTblG0~HtCyBKvZ2Y1pWcla-ANyU7AAej3DJGk-hHJgsMw__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                اُردُو                            </option>
+                                                    <option value="https://cacdn.hakunaymatata.com/subtitle/0a5f120053908da4c624e2975c8fd214.srt?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jYWNkbi5oYWt1bmF5bWF0YXRhLmNvbS9zdWJ0aXRsZS8qIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzQ2MjYwOTUyfX19XX0_&Signature=Kyr-hg8iMkrxXIZo9FM0oFfe8R9oIPTozMXAz1xU3IbmSAmMW~YMy6pFRGk4pjlpJNpfGopk~5t-3SE1enbBGH6PMdn1CcaPmYihwNUW7fxxdy74iTjZzYM16wYR-VJ22FcwxxgACMLLKcaWEDAshUNnD6Kc0QhbeMwpQFnxpuKCRY8faiPERktDYwZuyDnQd5WWDQP9eG0DufZsab1EFLRYFWTZyfLVhntw41AUAbwEov~eV2TH4tA7GxscKVlgviGDCMGlbiYqvq2LwUQozrM~QIKk~TS98Z~BjHI-kosbrC6RQWN1AkTAf-gf9fomUDZx7sAjl5CCorL6Oz8-cA__&Key-Pair-Id=KMHN1LQ1HEUPL">
+                                中文                            </option>
+                                            </select>
+                </div>
+
+                <button onclick="startDownload()" class="w-full bg-purple-600 hover:bg-purple-700 transition-all p-3 rounded-lg text-lg font-semibold">
+                    Download Video
+                </button>
+
+                <p id="status" class="text-center text-sm text-purple-300 mt-4"></p>
+            </div>
+        </div>
+    </div>
+
+    <iframe id="downloadFrame" style="display:none;"></iframe>
+
+    <script>
+        function startDownload() {
+            const videoUrl = document.getElementById('videoSelect').value;
+            const subUrl = document.getElementById('subtitleSelect').value;
+            const status = document.getElementById('status');
+
+            if (!videoUrl) {
+                alert('Please select a video quality first!');
+                return;
+            }
+
+            status.textContent = "Starting video download...";
+
+            const frame = document.getElementById('downloadFrame');
+            frame.src = videoUrl;
+
+            if (subUrl) {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = subUrl;
+                    a.download = "Ra_One.vtt";
+                    a.click();
+                    status.textContent = "Video and Subtitle download started.";
+                }, 2000);
+            } else {
+                status.textContent = "Video download started.";
+            }
+        }
+    </script>
+</body>
+</html>
