@@ -178,6 +178,7 @@
     <div class="player-message" id="playerMessage"></div>
     <video id="player" playsinline controls>
       <source src="${video.url}" type="video/mp4">
+      <!-- Subtitle tracks will be added via JavaScript -->
     </video>
   </div>
   
@@ -206,19 +207,37 @@
       
       // Prepare subtitle tracks
       const subtitleTracks = [];
-      ${video.subtitleOptions ? `
-      // Add subtitle tracks from the video data
-      ${video.subtitleOptions}.forEach(subtitle => {
-        subtitleTracks.push({
-          kind: 'subtitles',
-          label: subtitle.label,
-          srclang: subtitle.language || 'en',
-          src: subtitle.url,
-          default: subtitle.language === 'en' // Make English the default if available
+      
+      // Add subtitle tracks from the video data if available
+      const hasSubtitles = ${video.subtitleOptions ? 'true' : 'false'};
+      const subtitleData = JSON.parse('${JSON.stringify(video.subtitleOptions || [])}');
+      
+      if (hasSubtitles && subtitleData.length > 0) {
+        subtitleData.forEach(subtitle => {
+          subtitleTracks.push({
+            kind: 'subtitles',
+            label: subtitle.label,
+            srclang: subtitle.language || 'en',
+            src: subtitle.url,
+            default: subtitle.language === 'en' // Make English the default if available
+          });
         });
-      });
-      ` : ''}
+      }
 
+      // Set initial source with subtitle tracks
+      const initialSource = {
+        type: 'video',
+        sources: [{
+          src: '${video.url}',
+          type: 'video/mp4'
+        }]
+      };
+      
+      // Add subtitle tracks if available
+      if (subtitleTracks.length > 0) {
+        initialSource.tracks = subtitleTracks;
+      }
+      
       // Initialize player with advanced options
       const player = new Plyr('#player', {
         fullscreen: { enabled: true, fallback: true, iosNative: true },
@@ -236,6 +255,9 @@
         invertTime: false,
         captions: { active: true, language: 'auto', update: true }
       });
+      
+      // Set the source after initializing
+      player.source = initialSource;
       
       // Handle quality selection
       const qualitySelect = document.getElementById('qualitySelect');
@@ -384,10 +406,9 @@
             break;
           case 's':
             e.preventDefault();
-            if (subtitleSelect) {
-              subtitleSelect.focus();
-              showMessage('Select Subtitle', 2000);
-            }
+            // Toggle caption visibility using Plyr's built-in controls
+            player.toggleCaptions();
+            showMessage(player.captions.active ? 'Subtitles On' : 'Subtitles Off', 2000);
             break;
           case '0': case '1': case '2': case '3': case '4':
           case '5': case '6': case '7': case '8': case '9':
@@ -483,13 +504,8 @@
         
         // Try to reload the video after a brief delay
         setTimeout(() => {
-          player.source = {
-            type: 'video',
-            sources: [{
-              src: '${video.url}',
-              type: 'video/mp4'
-            }]
-          };
+          // Reuse initial source with tracks
+          player.source = initialSource;
         }, 3000);
       });
     });

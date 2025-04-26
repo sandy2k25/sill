@@ -34,6 +34,7 @@ export const insertVideoSchema = createInsertSchema(videos).pick({
   url: true,
   quality: true,
   qualityOptions: true,
+  subtitleOptions: true,
 });
 
 // Domain whitelist schema
