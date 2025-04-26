@@ -14,13 +14,18 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, Bot, Database, Info, Play, RefreshCw, Square } from 'lucide-react';
+import { 
+  AlertCircle, Bot, Database, Info, Play, RefreshCw, Square, 
+  ExternalLink, MessageSquare, Copy, Check, Send, ArrowRight
+} from 'lucide-react';
 
 const TelegramBotStatus: React.FC = () => {
   const [status, setStatus] = useState<TelegramStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [channelId, setChannelId] = useState<string>('');
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+  const [copySuccess, setCopySuccess] = useState<boolean>(false);
+  const [botUsername, setBotUsername] = useState<string>('');
   const { toast } = useToast();
   
   useEffect(() => {
@@ -35,7 +40,61 @@ const TelegramBotStatus: React.FC = () => {
     if (status?.channelId) {
       setChannelId(status.channelId);
     }
+    
+    // Extract bot username if token is available
+    if (status?.botToken) {
+      const tokenParts = status.botToken.split(':');
+      if (tokenParts.length === 2) {
+        // Try to fetch bot info from the API
+        fetch('/api/telegram/bot/info')
+          .then(response => response.json())
+          .then(data => {
+            if (data.success && data.username) {
+              setBotUsername(data.username);
+            }
+          })
+          .catch(error => {
+            console.error('Failed to fetch bot username:', error);
+            // Fallback to a placeholder
+            setBotUsername('your_bot');
+          });
+      }
+    }
   }, [status]);
+  
+  const handleCopyBotLink = () => {
+    const botLink = `https://t.me/${botUsername}`;
+    navigator.clipboard.writeText(botLink)
+      .then(() => {
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+        toast({
+          title: "Success",
+          description: "Bot link copied to clipboard",
+        });
+      })
+      .catch(() => {
+        toast({
+          title: "Error",
+          description: "Failed to copy to clipboard",
+          variant: "destructive"
+        });
+      });
+  };
+  
+  const openTelegramBot = () => {
+    if (!botUsername) {
+      toast({
+        title: "Info",
+        description: "Bot username not available",
+        variant: "default"
+      });
+      return;
+    }
+    
+    const botLink = `https://t.me/${botUsername}`;
+    window.open(botLink, '_blank');
+  };
   
   const fetchStatus = async () => {
     setLoading(true);
@@ -319,20 +378,68 @@ const TelegramBotStatus: React.FC = () => {
           </div>
         </CardContent>
         
-        <CardFooter className="flex justify-between border-t pt-5">
-          <p className="text-xs text-muted-foreground">
-            Channel storage allows saving data to a Telegram channel for backup and persistence.
-          </p>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={fetchStatus}
-            disabled={loading}
-            className="flex items-center gap-1"
-          >
-            <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+        <CardFooter className="flex flex-col space-y-4 border-t pt-5">
+          <div className="flex justify-between w-full items-center">
+            <p className="text-xs text-muted-foreground">
+              Channel storage allows saving data to a Telegram channel for backup and persistence.
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={fetchStatus}
+              disabled={loading}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+          
+          {/* Bot Quick Access Section */}
+          {status?.active && botUsername && (
+            <div className="w-full pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium mb-1">Quick Access</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Access your Telegram bot directly with these shortcuts
+                  </p>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex items-center gap-1"
+                    onClick={handleCopyBotLink}
+                  >
+                    {copySuccess ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    Copy Link
+                  </Button>
+                  
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={openTelegramBot}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open Bot
+                  </Button>
+                </div>
+              </div>
+              
+              {botUsername && (
+                <div className="mt-2 p-2 bg-primary/5 rounded-md border border-primary/10 flex items-center justify-between">
+                  <div className="flex items-center">
+                    <MessageSquare className="h-4 w-4 text-blue-400 mr-2" />
+                    <span className="text-xs font-mono">@{botUsername}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">t.me/{botUsername}</span>
+                </div>
+              )}
+            </div>
+          )}
         </CardFooter>
       </Card>
     </div>
