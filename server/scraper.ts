@@ -413,7 +413,12 @@ export class WovIeX {
             const qualityOptions = [];
             
             while ((optionMatch = optionRegex.exec(selectContent)) !== null) {
-              const url = optionMatch[1];
+              // Decode HTML entities in the URL (e.g., &amp; -> &)
+              const url = optionMatch[1].replace(/&amp;/g, '&')
+                                       .replace(/&lt;/g, '<')
+                                       .replace(/&gt;/g, '>')
+                                       .replace(/&quot;/g, '"')
+                                       .replace(/&#039;/g, "'");
               const label = optionMatch[2].trim();
               
               if (url && label) {
@@ -456,7 +461,12 @@ export class WovIeX {
               const qualityOptions = [];
               
               while ((optionMatch = optionRegex.exec(selectContent)) !== null) {
-                const url = optionMatch[1];
+                // Decode HTML entities in the URL (e.g., &amp; -> &)
+                const url = optionMatch[1].replace(/&amp;/g, '&')
+                                         .replace(/&lt;/g, '<')
+                                         .replace(/&gt;/g, '>')
+                                         .replace(/&quot;/g, '"')
+                                         .replace(/&#039;/g, "'");
                 const label = optionMatch[2].trim();
                 
                 if (url && label) {
@@ -497,7 +507,12 @@ export class WovIeX {
             const subtitleOptions = [];
             
             while ((optionMatch = optionRegex.exec(selectContent)) !== null) {
-              const url = optionMatch[1];
+              // Decode HTML entities in the URL (e.g., &amp; -> &)
+              const url = optionMatch[1].replace(/&amp;/g, '&')
+                                       .replace(/&lt;/g, '<')
+                                       .replace(/&gt;/g, '>')
+                                       .replace(/&quot;/g, '"')
+                                       .replace(/&#039;/g, "'");
               const label = optionMatch[2].trim();
               
               if (url && label && url !== "no" && url !== "") {
@@ -561,7 +576,12 @@ export class WovIeX {
               if (this._lastQualityOptions.length === 0) {
                 const videoSelectValueMatch = embedHtml.match(/<option[^>]*value=["']([^"']+)["'][^>]*>/i);
                 if (videoSelectValueMatch && videoSelectValueMatch[1]) {
-                  videoUrl = videoSelectValueMatch[1];
+                  // Decode HTML entities in the URL (e.g., &amp; -> &)
+                  videoUrl = videoSelectValueMatch[1].replace(/&amp;/g, '&')
+                                                   .replace(/&lt;/g, '<')
+                                                   .replace(/&gt;/g, '>')
+                                                   .replace(/&quot;/g, '"')
+                                                   .replace(/&#039;/g, "'");
                   logInfo('Scraper', `Found videoSelect first value as URL: ${videoUrl.substring(0, 50)}...`);
                 }
               } else {
