@@ -10,6 +10,9 @@ const DomainWhitelist: React.FC = () => {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [newDomain, setNewDomain] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [checkDomainInput, setCheckDomainInput] = useState<string>('');
+  const [checkResult, setCheckResult] = useState<{domain: string, whitelisted: boolean} | null>(null);
+  const [isChecking, setIsChecking] = useState<boolean>(false);
   const { toast } = useToast();
   
   useEffect(() => {

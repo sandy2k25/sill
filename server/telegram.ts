@@ -18,6 +18,281 @@ export class TelegramBot {
   private isRunning: boolean = false;
   private adminUsers: Set<number> = new Set();
   
+  // Handler methods for button callbacks
+  private async handleStats(ctx: any) {
+    if (!videoScraperInstance || !storageInstance) {
+      await ctx.reply('⚠️ System statistics not available');
+      return;
+    }
+    
+    try {
+      const settings = await storageInstance.getScraperSettings();
+      const videos = await storageInstance.getRecentVideos(1000);
+      const domains = await storageInstance.getAllDomains();
+      
+      const stats = {
+        totalVideos: videos.length,
+        totalDomains: domains.length,
+        activeDomains: domains.filter(d => d.active).length,
+        cacheEnabled: settings.cacheEnabled,
+        cacheTTL: settings.cacheTTL
+      };
+      
+      await ctx.reply(
+        '📊 *System Statistics*\n\n' +
+        `Total Videos: ${stats.totalVideos}\n` +
+        `Total Domains: ${stats.totalDomains}\n` +
+        `Active Domains: ${stats.activeDomains}\n` +
+        `Cache Enabled: ${stats.cacheEnabled ? 'Yes' : 'No'}\n` +
+        `Cache TTL: ${stats.cacheTTL} minutes`,
+        { 
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "Back to Menu", callback_data: "menu" }]
+            ]
+          }
+        }
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      await ctx.reply(`⚠️ Error fetching statistics: ${errorMessage}`);
+    }
+  }
+  
+  private async handleSettings(ctx: any) {
+    if (!storageInstance) {
+      await ctx.reply('⚠️ Settings not available');
+      return;
+    }
+    
+    try {
+      const settings = await storageInstance.getScraperSettings();
+      
+      await ctx.reply(
+        '⚙️ *Current Settings*\n\n' +
+        `Timeout: ${settings.timeout} seconds\n` +
+        `Auto Retry: ${settings.autoRetry ? 'Enabled' : 'Disabled'}\n` +
+        `Cache: ${settings.cacheEnabled ? 'Enabled' : 'Disabled'}\n` +
+        `Cache TTL: ${settings.cacheTTL} minutes\n\n` +
+        'To change settings, use these commands:\n' +
+        '/settings timeout <seconds>\n' +
+        '/settings retry <on/off>\n' +
+        '/settings cache <on/off>\n' +
+        '/settings ttl <minutes>',
+        { 
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "Enable Cache", callback_data: "settings_cache_on" },
+                { text: "Disable Cache", callback_data: "settings_cache_off" }
+              ],
+              [{ text: "Back to Menu", callback_data: "menu" }]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      await ctx.reply(`⚠️ Error fetching settings: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  private async handleDomains(ctx: any) {
+    if (!storageInstance) {
+      await ctx.reply('⚠️ Domain management not available');
+      return;
+    }
+    
+    try {
+      const domains = await storageInstance.getAllDomains();
+      
+      if (domains.length === 0) {
+        await ctx.reply(
+          '🌐 *Whitelisted Domains*\n\n' +
+          'No domains have been added yet.\n\n' +
+          'Use /domains add <domain> to add a new domain',
+          { 
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "Back to Menu", callback_data: "menu" }]
+              ]
+            }
+          }
+        );
+        return;
+      }
+      
+      const domainsText = domains.map(d => 
+        `${d.id}. ${d.domain} - ${d.active ? '✅ Active' : '❌ Inactive'}`
+      ).join('\n');
+      
+      await ctx.reply(
+        '🌐 *Whitelisted Domains*\n\n' +
+        `${domainsText}\n\n` +
+        'Use these commands to manage domains:\n' +
+        '/domains add <domain> - Add a new domain\n' +
+        '/domains toggle <id> - Toggle domain status\n' +
+        '/domains delete <id> - Delete a domain',
+        { 
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "Back to Menu", callback_data: "menu" }]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      await ctx.reply(`⚠️ Error fetching domains: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  private async handleCache(ctx: any) {
+    if (!videoScraperInstance || !storageInstance) {
+      await ctx.reply('⚠️ Cache management not available');
+      return;
+    }
+    
+    try {
+      const settings = await storageInstance.getScraperSettings();
+      const videos = await storageInstance.getRecentVideos(5);
+      
+      let videosText = '';
+      if (videos.length > 0) {
+        videosText = '\n\n*Recent Videos in Cache:*\n' + 
+          videos.map(v => `- ${v.videoId}: ${v.title || 'Untitled'}`).join('\n');
+      }
+      
+      await ctx.reply(
+        '🗄️ *Video Cache*\n\n' +
+        `Status: ${settings.cacheEnabled ? '✅ Enabled' : '❌ Disabled'}\n` +
+        `TTL: ${settings.cacheTTL} minutes\n` +
+        `${videosText}\n\n` +
+        'Use these commands to manage cache:\n' +
+        '/cache clear - Clear the entire cache\n' +
+        '/cache refresh <videoId> - Refresh a specific video',
+        { 
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "Clear Cache", callback_data: "cache_clear" },
+              ],
+              [{ text: "Back to Menu", callback_data: "menu" }]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      await ctx.reply(`⚠️ Error fetching cache info: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  private async handleLogs(ctx: any) {
+    if (!storageInstance) {
+      await ctx.reply('⚠️ Logs not available');
+      return;
+    }
+    
+    try {
+      const { logs } = await storageInstance.getLogs(10, 0);
+      
+      if (logs.length === 0) {
+        await ctx.reply(
+          '📝 *System Logs*\n\n' +
+          'No logs available.',
+          { 
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "Back to Menu", callback_data: "menu" }]
+              ]
+            }
+          }
+        );
+        return;
+      }
+      
+      const logsText = logs.map(log => 
+        `[${log.level}] ${log.source}: ${log.message.substring(0, 50)}${log.message.length > 50 ? '...' : ''}`
+      ).join('\n');
+      
+      await ctx.reply(
+        '📝 *System Logs*\n\n' +
+        `${logsText}`,
+        { 
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "Clear Logs", callback_data: "logs_clear" }
+              ],
+              [{ text: "Back to Menu", callback_data: "menu" }]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      await ctx.reply(`⚠️ Error fetching logs: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  private async handleChannel(ctx: any) {
+    const channelStatus = this.isChannelStorageEnabled() 
+      ? `✅ Enabled (ID: ${this.channelStorage.channelId})` 
+      : '❌ Disabled';
+    
+    await ctx.reply(
+      '📢 *Channel Storage*\n\n' +
+      `Status: ${channelStatus}\n\n` +
+      'Channel storage allows the bot to save data in a Telegram channel.\n' +
+      'This is useful for backup and cross-device synchronization.',
+      { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "Verify Channel ID", callback_data: "verify_channel" }
+            ],
+            [
+              { text: "Disable Storage", callback_data: "channel_disable" }
+            ],
+            [{ text: "Back to Menu", callback_data: "menu" }]
+          ]
+        }
+      }
+    );
+  }
+  
+  private async handleHelp(ctx: any) {
+    await ctx.reply(
+      '❓ *Help Information*\n\n' +
+      'This bot allows you to manage your WovIeX service.\n\n' +
+      '*Features:*\n' +
+      '• View system statistics\n' +
+      '• Manage scraper settings\n' +
+      '• Control domain whitelist\n' +
+      '• Manage video cache\n' +
+      '• View system logs\n' +
+      '• Configure channel storage\n\n' +
+      '*Channel Storage:*\n' +
+      'The bot can use a Telegram channel as database backup.\n' +
+      'Use the Channel Storage menu to configure this feature.\n\n' +
+      '*Admin Authentication:*\n' +
+      'Use /admin <password> to authenticate as admin.',
+      { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "Back to Menu", callback_data: "menu" }]
+          ]
+        }
+      }
+    );
+  }
+  
   // Telegram channel storage configuration
   private channelStorage: TelegramDB = {
     channelId: process.env.TELEGRAM_CHANNEL_ID,
@@ -131,24 +406,31 @@ export class TelegramBot {
     // Menu command - shows available commands
     this.bot.command('menu', async (ctx) => {
       await ctx.reply(
-        '📋 *Available Commands*\n\n' +
-        '/stats - Show system statistics\n' +
-        '/settings - Show current settings\n' +
-        '/domains - Manage whitelisted domains\n' +
-        '/cache - Manage video cache\n' +
-        '/logs - View recent logs\n' +
-        '/channel - Configure channel storage\n' +
-        '/help - Show help information',
+        '📋 *WovIeX Bot Menu*\n\n' +
+        'Please select an option below:',
         { 
           parse_mode: 'Markdown',
           reply_markup: {
-            keyboard: [
-              [{ text: '/stats' }, { text: '/settings' }],
-              [{ text: '/domains' }, { text: '/cache' }],
-              [{ text: '/logs' }, { text: '/channel' }],
-              [{ text: '/help' }]
-            ],
-            resize_keyboard: true
+            inline_keyboard: [
+              [
+                { text: "📊 Statistics", callback_data: "stats" },
+                { text: "⚙️ Settings", callback_data: "settings" }
+              ],
+              [
+                { text: "🌐 Domains", callback_data: "domains" },
+                { text: "🗄️ Cache", callback_data: "cache" }
+              ],
+              [
+                { text: "📝 Logs", callback_data: "logs" },
+                { text: "📢 Channel Storage", callback_data: "channel" }
+              ],
+              [
+                { text: "❓ Help", callback_data: "help" }
+              ],
+              [
+                { text: "🔍 Verify Channel ID", callback_data: "verify_channel" }
+              ]
+            ]
           }
         }
       );
@@ -324,6 +606,399 @@ export class TelegramBot {
         );
       } catch (error) {
         await ctx.reply(`⚠️ Error fetching logs: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+    
+    // Handle button callbacks
+    this.bot.on('callback_query', async (ctx) => {
+      try {
+        if (!ctx.callbackQuery) return;
+        const callbackData = ctx.callbackQuery.data;
+        if (!callbackData) return;
+        
+        // Answer the callback query to stop loading animation
+        await ctx.answerCbQuery();
+        
+        // Special case for menu
+        if (callbackData === 'menu') {
+          await ctx.reply(
+            '📋 *WovIeX Bot Menu*\n\n' +
+            'Please select an option below:',
+            { 
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: "📊 Statistics", callback_data: "stats" },
+                    { text: "⚙️ Settings", callback_data: "settings" }
+                  ],
+                  [
+                    { text: "🌐 Domains", callback_data: "domains" },
+                    { text: "🗄️ Cache", callback_data: "cache" }
+                  ],
+                  [
+                    { text: "📝 Logs", callback_data: "logs" },
+                    { text: "📢 Channel Storage", callback_data: "channel" }
+                  ],
+                  [
+                    { text: "❓ Help", callback_data: "help" }
+                  ],
+                  [
+                    { text: "🔍 Verify Channel ID", callback_data: "verify_channel" }
+                  ]
+                ]
+              }
+            }
+          );
+          return;
+        }
+        
+        switch (callbackData) {
+          case 'stats':
+            // Show statistics
+            if (!videoScraperInstance || !storageInstance) {
+              await ctx.reply('⚠️ System statistics not available');
+              return;
+            }
+            
+            try {
+              const settings = await storageInstance.getScraperSettings();
+              const videos = await storageInstance.getRecentVideos(1000);
+              const domains = await storageInstance.getAllDomains();
+              
+              const stats = {
+                totalVideos: videos.length,
+                totalDomains: domains.length,
+                activeDomains: domains.filter(d => d.active).length,
+                cacheEnabled: settings.cacheEnabled,
+                cacheTTL: settings.cacheTTL
+              };
+              
+              await ctx.reply(
+                '📊 *System Statistics*\n\n' +
+                `Total Videos: ${stats.totalVideos}\n` +
+                `Total Domains: ${stats.totalDomains}\n` +
+                `Active Domains: ${stats.activeDomains}\n` +
+                `Cache Enabled: ${stats.cacheEnabled ? 'Yes' : 'No'}\n` +
+                `Cache TTL: ${stats.cacheTTL} minutes`,
+                { 
+                  parse_mode: 'Markdown',
+                  reply_markup: {
+                    inline_keyboard: [
+                      [{ text: "Back to Menu", callback_data: "menu" }]
+                    ]
+                  }
+                }
+              );
+            } catch (err) {
+              const errorMessage = err instanceof Error ? err.message : String(err);
+              await ctx.reply(`⚠️ Error fetching statistics: ${errorMessage}`);
+            }
+            break;
+            
+          case 'settings':
+            // Show settings
+            if (!storageInstance) {
+              await ctx.reply('⚠️ Settings not available');
+              return;
+            }
+            
+            try {
+              const settings = await storageInstance.getScraperSettings();
+              
+              await ctx.reply(
+                '⚙️ *Current Settings*\n\n' +
+                `Timeout: ${settings.timeout} seconds\n` +
+                `Auto Retry: ${settings.autoRetry ? 'Enabled' : 'Disabled'}\n` +
+                `Cache: ${settings.cacheEnabled ? 'Enabled' : 'Disabled'}\n` +
+                `Cache TTL: ${settings.cacheTTL} minutes\n\n` +
+                'To change settings, use these commands:\n' +
+                '/settings timeout <seconds>\n' +
+                '/settings retry <on/off>\n' +
+                '/settings cache <on/off>\n' +
+                '/settings ttl <minutes>',
+                { 
+                  parse_mode: 'Markdown',
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        { text: "Enable Cache", callback_data: "settings_cache_on" },
+                        { text: "Disable Cache", callback_data: "settings_cache_off" }
+                      ],
+                      [{ text: "Back to Menu", callback_data: "menu" }]
+                    ]
+                  }
+                }
+              );
+            } catch (error) {
+              await ctx.reply(`⚠️ Error fetching settings: ${error instanceof Error ? error.message : String(error)}`);
+            }
+            break;
+            
+          case 'domains':
+            // Show domains
+            if (!storageInstance) {
+              await ctx.reply('⚠️ Domain management not available');
+              return;
+            }
+            
+            try {
+              const domains = await storageInstance.getAllDomains();
+              
+              if (domains.length === 0) {
+                await ctx.reply(
+                  '🌐 *Whitelisted Domains*\n\n' +
+                  'No domains have been added yet.\n\n' +
+                  'Use /domains add <domain> to add a new domain',
+                  { 
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                      inline_keyboard: [
+                        [{ text: "Back to Menu", callback_data: "menu" }]
+                      ]
+                    }
+                  }
+                );
+                return;
+              }
+              
+              const domainsText = domains.map(d => 
+                `${d.id}. ${d.domain} - ${d.active ? '✅ Active' : '❌ Inactive'}`
+              ).join('\n');
+              
+              await ctx.reply(
+                '🌐 *Whitelisted Domains*\n\n' +
+                `${domainsText}\n\n` +
+                'Use these commands to manage domains:\n' +
+                '/domains add <domain> - Add a new domain\n' +
+                '/domains toggle <id> - Toggle domain status\n' +
+                '/domains delete <id> - Delete a domain',
+                { 
+                  parse_mode: 'Markdown',
+                  reply_markup: {
+                    inline_keyboard: [
+                      [{ text: "Back to Menu", callback_data: "menu" }]
+                    ]
+                  }
+                }
+              );
+            } catch (error) {
+              await ctx.reply(`⚠️ Error fetching domains: ${error instanceof Error ? error.message : String(error)}`);
+            }
+            break;
+            
+          case 'cache':
+            // Show cache info
+            if (!videoScraperInstance || !storageInstance) {
+              await ctx.reply('⚠️ Cache management not available');
+              return;
+            }
+            
+            try {
+              const settings = await storageInstance.getScraperSettings();
+              const videos = await storageInstance.getRecentVideos(5);
+              
+              let videosText = '';
+              if (videos.length > 0) {
+                videosText = '\n\n*Recent Videos in Cache:*\n' + 
+                  videos.map(v => `- ${v.videoId}: ${v.title || 'Untitled'}`).join('\n');
+              }
+              
+              await ctx.reply(
+                '🗄️ *Video Cache*\n\n' +
+                `Status: ${settings.cacheEnabled ? '✅ Enabled' : '❌ Disabled'}\n` +
+                `TTL: ${settings.cacheTTL} minutes\n` +
+                `${videosText}\n\n` +
+                'Use these commands to manage cache:\n' +
+                '/cache clear - Clear the entire cache\n' +
+                '/cache refresh <videoId> - Refresh a specific video',
+                { 
+                  parse_mode: 'Markdown',
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        { text: "Clear Cache", callback_data: "cache_clear" },
+                      ],
+                      [{ text: "Back to Menu", callback_data: "menu" }]
+                    ]
+                  }
+                }
+              );
+            } catch (error) {
+              await ctx.reply(`⚠️ Error fetching cache info: ${error instanceof Error ? error.message : String(error)}`);
+            }
+            break;
+            
+          case 'logs':
+            // Show logs
+            if (!storageInstance) {
+              await ctx.reply('⚠️ Logs not available');
+              return;
+            }
+            
+            try {
+              const { logs } = await storageInstance.getLogs(10, 0);
+              
+              if (logs.length === 0) {
+                await ctx.reply(
+                  '📝 *System Logs*\n\n' +
+                  'No logs available.',
+                  { 
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                      inline_keyboard: [
+                        [{ text: "Back to Menu", callback_data: "menu" }]
+                      ]
+                    }
+                  }
+                );
+                return;
+              }
+              
+              const logsText = logs.map(log => 
+                `[${log.level}] ${log.source}: ${log.message.substring(0, 50)}${log.message.length > 50 ? '...' : ''}`
+              ).join('\n');
+              
+              await ctx.reply(
+                '📝 *System Logs*\n\n' +
+                `${logsText}`,
+                { 
+                  parse_mode: 'Markdown',
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        { text: "Clear Logs", callback_data: "logs_clear" }
+                      ],
+                      [{ text: "Back to Menu", callback_data: "menu" }]
+                    ]
+                  }
+                }
+              );
+            } catch (error) {
+              await ctx.reply(`⚠️ Error fetching logs: ${error instanceof Error ? error.message : String(error)}`);
+            }
+            break;
+            
+          case 'channel':
+            // Show channel info
+            const channelStatus = this.isChannelStorageEnabled() 
+              ? `✅ Enabled (ID: ${this.channelStorage.channelId})` 
+              : '❌ Disabled';
+            
+            await ctx.reply(
+              '📢 *Channel Storage*\n\n' +
+              `Status: ${channelStatus}\n\n` +
+              'Channel storage allows the bot to save data in a Telegram channel.\n' +
+              'This is useful for backup and cross-device synchronization.',
+              { 
+                parse_mode: 'Markdown',
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      { text: "Verify Channel ID", callback_data: "verify_channel" }
+                    ],
+                    [
+                      { text: "Disable Storage", callback_data: "channel_disable" }
+                    ],
+                    [{ text: "Back to Menu", callback_data: "menu" }]
+                  ]
+                }
+              }
+            );
+            break;
+            
+          case 'help':
+            // Show help info
+            await ctx.reply(
+              '❓ *Help Information*\n\n' +
+              'This bot allows you to manage your WovIeX service.\n\n' +
+              '*Features:*\n' +
+              '• View system statistics\n' +
+              '• Manage scraper settings\n' +
+              '• Control domain whitelist\n' +
+              '• Manage video cache\n' +
+              '• View system logs\n' +
+              '• Configure channel storage\n\n' +
+              '*Channel Storage:*\n' +
+              'The bot can use a Telegram channel as database backup.\n' +
+              'Use the Channel Storage menu to configure this feature.\n\n' +
+              '*Admin Authentication:*\n' +
+              'Use /admin <password> to authenticate as admin.',
+              { 
+                parse_mode: 'Markdown',
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: "Back to Menu", callback_data: "menu" }]
+                  ]
+                }
+              }
+            );
+            break;
+            
+          case 'verify_channel':
+            // Show channel verification form
+            await ctx.reply(
+              '🔍 *Verify Channel ID*\n\n' +
+              'Please enter a channel ID to verify if the bot has access to it.\n\n' +
+              'To get your channel ID:\n' +
+              '1. Add the bot to your channel as admin\n' +
+              '2. Forward a message from your channel to @username_to_id_bot\n' +
+              '3. Copy the ID (usually starts with -100...)\n\n' +
+              'Enter the command: /verify_channel [channel_id]',
+              { parse_mode: 'Markdown' }
+            );
+            break;
+        }
+      } catch (error) {
+        console.error('Error handling callback query:', error);
+        await ctx.reply(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+    
+    // Command to verify channel access
+    this.bot.command('verify_channel', async (ctx) => {
+      const text = ctx.message.text;
+      const args = text.split(' ');
+      
+      if (args.length < 2) {
+        await ctx.reply('❌ Please provide a channel ID to verify. Usage: /verify_channel [channel_id]');
+        return;
+      }
+      
+      const channelId = args[1];
+      await ctx.reply(`🔍 Verifying access to channel ID: ${channelId}...`);
+      
+      try {
+        const result = await this.verifyChannelAccess(channelId);
+        
+        if (result.valid) {
+          let message = `✅ Success! Bot has access to this channel.`;
+          
+          if (result.correctedId) {
+            message += `\n\nℹ️ Note: The channel ID was reformatted to: ${result.correctedId}`;
+            message += `\n\nPlease use this ID when enabling channel storage.`;
+          }
+          
+          await ctx.reply(message, {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { 
+                    text: "Enable Channel Storage", 
+                    callback_data: `enable_channel:${result.correctedId || channelId}` 
+                  }
+                ],
+                [
+                  { text: "Back to Menu", callback_data: "menu" }
+                ]
+              ]
+            }
+          });
+        } else {
+          await ctx.reply(`❌ Verification failed: ${result.message}\n\nMake sure:\n1. The channel ID is correct\n2. The bot is a member of the channel\n3. The bot has admin privileges in the channel`);
+        }
+      } catch (error) {
+        await ctx.reply(`❌ Error verifying channel: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
     
@@ -865,6 +1540,48 @@ export class TelegramBot {
     return this.bot;
   }
   
+  /**
+   * Verify if a channel ID is valid and the bot has access to it
+   * @param channelId - The ID to verify
+   * @returns Promise<{valid: boolean, message: string}> - Result of verification
+   */
+  async verifyChannelAccess(channelId: string): Promise<{valid: boolean, message: string, correctedId?: string}> {
+    if (!this.bot) {
+      return { valid: false, message: "Bot is not active" };
+    }
+    
+    try {
+      // Ensure channel ID has the proper format
+      let formattedChannelId = channelId;
+      if (!channelId.startsWith('-100')) {
+        // If it's just a numeric ID without the -100 prefix, add it
+        if (/^\d+$/.test(channelId)) {
+          formattedChannelId = `-100${channelId}`;
+          console.log(`Reformatted channel ID to: ${formattedChannelId}`);
+        }
+      }
+      
+      // Attempt to send a test message to verify access
+      await this.bot.telegram.sendMessage(
+        formattedChannelId,
+        'CHANNEL_ACCESS_TEST: Verifying channel access...',
+        { disable_notification: true }
+      );
+      
+      return { 
+        valid: true, 
+        message: "Channel access verified successfully",
+        correctedId: formattedChannelId !== channelId ? formattedChannelId : undefined
+      };
+    } catch (error) {
+      console.error('Channel verification error:', error);
+      return { 
+        valid: false, 
+        message: `Channel verification failed: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
+  }
+
   /**
    * Enable Telegram channel as database storage
    * @param channelId - The ID of the Telegram channel to use for storage
