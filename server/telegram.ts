@@ -281,7 +281,8 @@ export class TelegramBot {
       'The bot can use a Telegram channel as database backup.\n' +
       'Use the Channel Storage menu to configure this feature.\n\n' +
       '*Admin Authentication:*\n' +
-      'Use /admin <password> to authenticate as admin.',
+      'Use /admin <password> to authenticate as admin.\n' +
+      'For example: /admin yourpassword',
       { 
         parse_mode: 'Markdown',
         reply_markup: {
@@ -1491,7 +1492,12 @@ export class TelegramBot {
    * Verify admin password
    */
   private verifyAdminPassword(password: string): boolean {
-    const adminPassword = process.env.TELEGRAM_ADMIN_PASSWORD;
+    // Check both environment variable names for compatibility
+    const adminPassword = process.env.TELEGRAM_BOT_ADMIN_PASSWORD || process.env.TELEGRAM_ADMIN_PASSWORD;
+    
+    // Log for debugging (will be removed in production)
+    console.log(`Verifying admin password: ${!!adminPassword ? 'Password set in env' : 'No password in env'}`);
+    
     return !!adminPassword && password === adminPassword;
   }
   

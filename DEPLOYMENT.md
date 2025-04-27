@@ -92,6 +92,7 @@ Understanding the different authentication methods:
 2. **Telegram Bot Admin**:
    - Set with `TELEGRAM_BOT_ADMIN_PASSWORD` environment variable
    - Used when interacting with the Telegram bot
+   - To authenticate, message the bot with: `/admin your_password`
    - Required for administrative commands to the bot
 
 ## Post-Deployment Configuration

@@ -20,6 +20,13 @@
    - Password: `admin123`
 3. Change the default password immediately!
 
+## Telegram Bot Authentication
+
+1. Find and message your bot on Telegram
+2. Send the command: `/admin your_password` 
+   (replace "your_password" with your TELEGRAM_BOT_ADMIN_PASSWORD)
+3. After successful authentication, you'll have access to all bot commands
+
 ## Complete Documentation
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
