@@ -50,10 +50,58 @@ if (missingFunctions) {
   process.exit(1);
 }
 
-// Build the application
-console.log(`${colors.yellow}Building the application...${colors.reset}`);
+// Use Netlify-specific package.json and Vite config
+console.log(`${colors.yellow}Setting up Netlify-specific configuration files...${colors.reset}`);
+
+if (fs.existsSync('package.netlify.json')) {
+  console.log(`Copying package.netlify.json to package.json`);
+  fs.copyFileSync('package.netlify.json', 'package.json');
+} else {
+  console.log(`${colors.red}⚠️ package.netlify.json not found. Using existing package.json${colors.reset}`);
+}
+
+if (!fs.existsSync('vite.netlify.config.js')) {
+  console.log(`${colors.red}⚠️ vite.netlify.config.js not found. Creating a simplified version...${colors.reset}`);
+  
+  const viteConfigContent = `
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+
+// This is a simplified Vite configuration specifically for Netlify deployment
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "client", "src"),
+      "@shared": path.resolve(__dirname, "shared"),
+      "@assets": path.resolve(__dirname, "attached_assets"),
+    },
+  },
+  root: path.resolve(__dirname, "client"),
+  build: {
+    outDir: path.resolve(__dirname, "dist/public"),
+    emptyOutDir: true,
+  },
+});
+  `;
+  
+  fs.writeFileSync('vite.netlify.config.js', viteConfigContent);
+}
+
+// Install dependencies
+console.log(`${colors.yellow}Installing dependencies...${colors.reset}`);
 try {
-  execSync('npm run build', { stdio: 'inherit' });
+  execSync('npm ci', { stdio: 'inherit' });
+} catch (error) {
+  console.error(`${colors.red}❌ Dependency installation failed:${colors.reset}`, error.message);
+  console.log(`${colors.yellow}Continuing anyway...${colors.reset}`);
+}
+
+// Build the application with Netlify-specific config
+console.log(`${colors.yellow}Building the application with Netlify config...${colors.reset}`);
+try {
+  execSync('npm run build -- --config vite.netlify.config.js', { stdio: 'inherit' });
 } catch (error) {
   console.error(`${colors.red}❌ Build failed:${colors.reset}`, error.message);
   process.exit(1);
@@ -69,6 +117,11 @@ const redirectsContent = `# Netlify redirects file
 
 `;
 
+// Make sure the dist/public directory exists
+if (!fs.existsSync('dist/public')) {
+  fs.mkdirSync('dist/public', { recursive: true });
+}
+
 fs.writeFileSync(path.join('dist/public', '_redirects'), redirectsContent);
 console.log(`${colors.green}✅ Created _redirects file.${colors.reset}\n`);
 
@@ -80,6 +133,7 @@ const envSampleContent = `# Netlify Environment Variables
 # Authentication
 JWT_SECRET=your_secure_jwt_secret_key
 ADMIN_PASSWORD=your_admin_password
+ADMIN_API_KEY=your_admin_api_key
 
 # API Keys (if needed)
 API_KEY=your_api_key_if_needed

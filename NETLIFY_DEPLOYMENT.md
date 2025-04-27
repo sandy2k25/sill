@@ -49,10 +49,11 @@ Before starting, ensure you have:
    ```
 
    This script:
-   - Builds the application
-   - Creates necessary configuration files
-   - Sets up redirects for SPA routing
-   - Configures the project for Netlify
+   - Replaces package.json with Netlify-specific version
+   - Ensures vite.netlify.config.js exists for Netlify compatibility
+   - Installs dependencies
+   - Builds the application with the Netlify-specific configuration
+   - Creates necessary redirects and configuration files
 
 3. **Update API Endpoints** (Optional)
 
@@ -128,7 +129,7 @@ These functions are deployed automatically with your Netlify site and provide eq
 
 3. **Configure Build Settings**
 
-   - Build command: `npm run build`
+   - Build command: `npm ci && npm run build -- --config vite.netlify.config.js`
    - Publish directory: `dist/public`
    - Click "Advanced" and add the environment variables (see below)
 
@@ -208,6 +209,15 @@ After successful deployment:
    - Review build logs in the Netlify dashboard
    - Fix any errors in your code
    - Ensure all dependencies are correctly specified in package.json
+   
+5. **"Cannot find package '@vitejs/plugin-react'" Error**
+
+   This error occurs because the build process can't find the required dependencies. To fix it:
+   
+   - Make sure you've run `node prepare-netlify-deploy.js` before deploying
+   - Use the package.netlify.json which includes all necessary dependencies
+   - In Netlify dashboard, change the build command to: `npm ci && npm run build -- --config vite.netlify.config.js`
+   - Check that your vite.netlify.config.js uses only dependencies specified in package.json
 
 ## Maintenance
 
