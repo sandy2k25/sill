@@ -1,13 +1,13 @@
 [build]
-  command = "node netlify-build-simple.js"
-  publish = "dist/public"
-  functions = "dist/functions"
+  command = "node netlify-frontend.js"
+  publish = "dist"
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 200
+# Environment variables
+[build.environment]
+  # Replace with your backend server URL when deployed
+  API_URL = "https://your-backend-server-url.com"
 
+# SPA redirect for client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
