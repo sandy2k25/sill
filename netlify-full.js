@@ -360,30 +360,43 @@ if (fs.existsSync('shared')) {
 // Build the frontend
 console.log(`${colors.cyan}Building frontend...${colors.reset}`);
 try {
-  // Create a temporary file to inject imports
-  const tempMain = `// Temporary main file for Netlify build
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
+  // Create a new Netlify-aware client entry point
+console.log(`${colors.yellow}Creating Netlify patch file...${colors.reset}`);
 
-// Set Netlify mode in localStorage for detection
-localStorage.setItem('NETLIFY_MODE', 'true');
+// First check if the netlify-patch.js file exists
+if (!fs.existsSync('client/src/lib/netlify-patch.js')) {
+  console.log(`${colors.yellow}netlify-patch.js not found, creating it...${colors.reset}`);
+  // This was already created in a previous step
+}
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-`;
+// Import the patch file in main.tsx before the build
+const mainFilePath = 'client/src/main.tsx';
+let mainFileContent = '';
 
-  // Check if client/src/main.tsx exists
-  if (fs.existsSync('client/src/main.tsx')) {
-    // Backup original file
-    fs.copyFileSync('client/src/main.tsx', 'client/src/main.tsx.backup');
-    // Write the temporary file
-    fs.writeFileSync('client/src/main.tsx', tempMain);
+if (fs.existsSync(mainFilePath)) {
+  // Read the original content
+  mainFileContent = fs.readFileSync(mainFilePath, 'utf8');
+  
+  // Backup original file
+  fs.copyFileSync(mainFilePath, `${mainFilePath}.backup`);
+  
+  // Check if the import is already there
+  if (!mainFileContent.includes('netlify-patch')) {
+    // We'll use a simple import that won't conflict with existing React imports
+    const patchedContent = `// Import Netlify patch (added by build script)
+import "./lib/netlify-patch.js";
+
+${mainFileContent}`;
+    
+    // Write the patched file
+    fs.writeFileSync(mainFilePath, patchedContent);
+    console.log(`${colors.green}✓ Patched main.tsx with Netlify detection${colors.reset}`);
+  } else {
+    console.log(`${colors.yellow}main.tsx already has Netlify patch import${colors.reset}`);
   }
+} else {
+  console.log(`${colors.red}main.tsx not found!${colors.reset}`);
+}
 
   execSync('npx vite build --config vite.netlify.js', { stdio: 'inherit' });
   console.log(`${colors.green}✓ Frontend build completed successfully${colors.reset}`);
