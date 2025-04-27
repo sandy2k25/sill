@@ -1,11 +1,11 @@
 # Complete Guide to Deploying WovIeX on Cloudflare
 
-This guide explains how to deploy the WovIeX application to Cloudflare from scratch, including creating all necessary secrets and configurations.
+This guide explains how to deploy the WovIeX application to Cloudflare from scratch, including configuring Telegram storage and all necessary security settings.
 
 ## Prerequisites
 
 1. Create a [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier is sufficient)
-2. Install Node.js and npm on your computer
+2. Have your Telegram bot token ready (or create a new bot using BotFather)
 3. Your WovIeX codebase
 
 ## Step 1: Set Up Your Cloudflare Project
@@ -68,40 +68,38 @@ wrangler secret put JWT_SECRET
 # Set admin credentials
 wrangler secret put ADMIN_USERNAME
 wrangler secret put ADMIN_PASSWORD
+
+# Set Telegram bot token and chat ID for storage
+wrangler secret put TELEGRAM_BOT_TOKEN
+wrangler secret put TELEGRAM_CHAT_ID
 ```
 
 When you run each command, you'll be prompted to enter the value for each secret.
 
-## Step 3: Database Setup
+## Step 3: Telegram Storage Setup
 
-Cloudflare offers several database options:
+The WovIeX application uses Telegram as its storage mechanism instead of a traditional database. This is how to set it up for Cloudflare:
 
-### Option 1: Cloudflare D1 (SQLite-compatible database)
+### Create a Telegram Bot (if you don't have one)
 
-```bash
-# Create a D1 database
-wrangler d1 create woviex-db
+1. Open Telegram and search for "BotFather"
+2. Send the command `/newbot` and follow the instructions
+3. BotFather will give you a token - this is your `TELEGRAM_BOT_TOKEN`
 
-# This will output a database_id - add it to your wrangler.toml:
-```
+### Create a Telegram Channel for Storage
 
-Add this to your wrangler.toml:
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "woviex-db"
-database_id = "YOUR_DATABASE_ID" # Use the ID from the command output
-```
+1. Create a new channel in Telegram
+2. Add your bot as an administrator with posting privileges
+3. Get the channel ID (you can use a bot like @username_to_id_bot)
+4. This is your `TELEGRAM_CHAT_ID` (should be in format -100xxxxxxxxx)
 
-### Option 2: External PostgreSQL Database (Neon)
+### Configure the Worker for Telegram Storage
 
-1. Sign up for a free [Neon PostgreSQL database](https://neon.tech)
-2. Create a new project and get your connection string
-3. Add the connection string as a secret:
+The worker code needs to be modified to use Telegram for storage:
 
-```bash
-wrangler secret put DATABASE_URL
-```
+1. Add Telegram API integration to worker/index.js
+2. Ensure all storage operations are sent to Telegram
+3. Set up periodic syncing to avoid data loss
 
 ## Step 4: Deploy Your Backend Worker
 
@@ -128,8 +126,7 @@ This will deploy your API to a URL like `https://woviex-api.username.workers.dev
    - Environment variables:
      - Add `API_URL` set to your Worker URL (e.g., `https://woviex-api.username.workers.dev/api`)
 
-## Step
-6: Configure Your Frontend
+## Step 6: Configure Your Frontend
 
 Create a file `client/src/api-config.js` to connect to your Worker:
 
@@ -188,11 +185,18 @@ You'll need to expand this file to handle all the routes your application needs.
 
 ## Migrating Your Data
 
-If you have existing data, you'll need to migrate it to your Cloudflare database:
+If you have existing data in your Telegram storage:
 
-1. Export your data from your current database
-2. Transform it to the format required by your Cloudflare database
-3. Import it using appropriate methods (D1, KV, or external database tools)
+1. It will automatically be accessible when you configure the Worker with the same Telegram bot and channel
+2. No additional migration is needed since Telegram is already your storage mechanism
+3. Just make sure the Worker's Telegram integration works correctly
+
+## Important Considerations for Telegram Storage
+
+1. **Rate Limits**: Telegram has API rate limits, so avoid making too many requests in a short time
+2. **Message Size**: Telegram has message size limits (4096 characters), so chunk larger data
+3. **Encryption**: Consider encrypting sensitive data before storing in Telegram
+4. **Backup**: Periodically back up the Telegram chat content as an additional safety measure
 
 ## Custom Domain Setup
 
