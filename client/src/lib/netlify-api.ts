@@ -1,70 +1,63 @@
 /**
- * This file provides API functions specifically for Netlify deployment
- * It will use Netlify Functions instead of the regular Express backend
+ * Netlify API utility
+ * 
+ * This file provides utility functions for making API calls when running on Netlify
  */
 
-// Base URL for API requests - in Netlify, we use the .netlify/functions/api path
-const API_BASE = '/.netlify/functions/api';
+// Helper to determine if we're running on Netlify
+export const isNetlify = (): boolean => {
+  return !!import.meta.env.VITE_NETLIFY_DEPLOY || 
+    window.location.hostname.includes('.netlify.app') ||
+    localStorage.getItem('NETLIFY_MODE') === 'true';
+};
 
-/**
- * Utility function to make API requests to Netlify Functions
- */
-export async function netlifyApiRequest<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const url = `${API_BASE}${endpoint}`;
-  
-  // Ensure proper content type for JSON requests
-  if (options.body && !options.headers) {
-    options.headers = {
-      'Content-Type': 'application/json',
-    };
+// Base URL for API calls
+export const getApiBaseUrl = (): string => {
+  if (isNetlify()) {
+    // Use Netlify Functions when deployed to Netlify
+    return '/.netlify/functions/api';
   }
   
+  // Use regular API path for local development
+  return '/api';
+};
+
+// Helper for making API requests that works in both environments
+export const apiRequest = async (
+  path: string, 
+  options: RequestInit = {}
+): Promise<any> => {
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  
+  // Make the fetch request
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+  
+  // Parse the JSON response
   try {
-    const response = await fetch(url, options);
+    const data = await response.json();
     
+    // If the response is not ok, throw an error
+    if (!response.ok) {
+      throw new Error(data.error || 'An unknown error occurred');
+    }
+    
+    return data;
+  } catch (error) {
+    // If the response is not JSON or there's an error parsing it
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
     }
     
-    return await response.json() as T;
-  } catch (error) {
-    console.error('API request failed:', error);
     throw error;
   }
-}
+};
 
-/**
- * Get recent videos
- */
-export async function getRecentVideos() {
-  return netlifyApiRequest('/videos');
-}
-
-/**
- * Get active domains
- */
-export async function getActiveDomains() {
-  return netlifyApiRequest('/domains');
-}
-
-/**
- * Get a video by its ID
- */
-export async function getVideoById(videoId: string) {
-  return netlifyApiRequest(`/videos/${videoId}`);
-}
-
-/**
- * Request a video URL to be scraped
- */
-export async function scrapeVideo(videoId: string) {
-  return netlifyApiRequest('/scrape', {
-    method: 'POST',
-    body: JSON.stringify({ videoId }),
-  });
-}
-
-// Add more API functions as needed for your Netlify deployment
+// Export default for convenience
+export default { isNetlify, getApiBaseUrl, apiRequest };

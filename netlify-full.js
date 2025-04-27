@@ -335,13 +335,73 @@ const redirectsContent = `/api/*    /.netlify/functions/api/:splat    200
 fs.writeFileSync('dist/public/_redirects', redirectsContent);
 console.log(`${colors.green}✓ Created _redirects file${colors.reset}`);
 
+// Create netlify.env file to inject environment variable for frontend detection
+console.log(`${colors.yellow}Creating Netlify environment file...${colors.reset}`);
+fs.writeFileSync('client/.env', 'VITE_NETLIFY_DEPLOY=true\n');
+console.log(`${colors.green}✓ Created Netlify environment file${colors.reset}`);
+
+// Process and copy shared schema files
+console.log(`${colors.yellow}Processing shared schema files...${colors.reset}`);
+// Make sure dist/shared exists
+if (!fs.existsSync('dist/shared')) {
+  fs.mkdirSync('dist/shared', { recursive: true });
+}
+// Copy shared files
+if (fs.existsSync('shared')) {
+  const sharedFiles = fs.readdirSync('shared');
+  sharedFiles.forEach(file => {
+    const sourcePath = path.join('shared', file);
+    const destPath = path.join('dist/shared', file);
+    fs.copyFileSync(sourcePath, destPath);
+  });
+  console.log(`${colors.green}✓ Copied shared schema files${colors.reset}`);
+}
+
 // Build the frontend
 console.log(`${colors.cyan}Building frontend...${colors.reset}`);
 try {
+  // Create a temporary file to inject imports
+  const tempMain = `// Temporary main file for Netlify build
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+
+// Set Netlify mode in localStorage for detection
+localStorage.setItem('NETLIFY_MODE', 'true');
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+`;
+
+  // Check if client/src/main.tsx exists
+  if (fs.existsSync('client/src/main.tsx')) {
+    // Backup original file
+    fs.copyFileSync('client/src/main.tsx', 'client/src/main.tsx.backup');
+    // Write the temporary file
+    fs.writeFileSync('client/src/main.tsx', tempMain);
+  }
+
   execSync('npx vite build --config vite.netlify.js', { stdio: 'inherit' });
   console.log(`${colors.green}✓ Frontend build completed successfully${colors.reset}`);
+  
+  // Restore original file if backed up
+  if (fs.existsSync('client/src/main.tsx.backup')) {
+    fs.copyFileSync('client/src/main.tsx.backup', 'client/src/main.tsx');
+    fs.unlinkSync('client/src/main.tsx.backup');
+  }
 } catch (error) {
   console.error(`${colors.red}❌ Frontend build failed${colors.reset}`, error.message);
+  
+  // Restore original file if backed up
+  if (fs.existsSync('client/src/main.tsx.backup')) {
+    fs.copyFileSync('client/src/main.tsx.backup', 'client/src/main.tsx');
+    fs.unlinkSync('client/src/main.tsx.backup');
+  }
+  
   console.log(`${colors.yellow}Falling back to static HTML...${colors.reset}`);
   
   // Create a static HTML fallback
@@ -363,7 +423,7 @@ try {
     <h1>WovIeX</h1>
     <p>The application is being set up. Full functionality will be available soon.</p>
     <p>In the meantime, you can still use the API endpoints.</p>
-    <a href="/api/videos" class="btn">Try API</a>
+    <a href="/.netlify/functions/api/videos" class="btn">Try API</a>
   </div>
 </body>
 </html>`;
@@ -385,10 +445,28 @@ if (!fs.existsSync('dist/functions/handlers')) {
   fs.mkdirSync('dist/functions/handlers', { recursive: true });
 }
 
-fs.copyFileSync('netlify/functions/handlers/videos.js', 'dist/functions/handlers/videos.js');
-fs.copyFileSync('netlify/functions/handlers/domains.js', 'dist/functions/handlers/domains.js');
-fs.copyFileSync('netlify/functions/handlers/auth.js', 'dist/functions/handlers/auth.js');
-fs.copyFileSync('netlify/functions/handlers/default.js', 'dist/functions/handlers/default.js');
+const handlerFiles = [
+  'videos.js',
+  'domains.js',
+  'auth.js',
+  'logs.js',
+  'users.js',
+  'scraper.js',
+  'default.js'
+];
+
+// Copy all handlers
+for (const file of handlerFiles) {
+  const sourcePath = path.join('netlify/functions/handlers', file);
+  const destPath = path.join('dist/functions/handlers', file);
+  
+  if (fs.existsSync(sourcePath)) {
+    fs.copyFileSync(sourcePath, destPath);
+    console.log(`${colors.green}✓ Copied handler: ${file}${colors.reset}`);
+  } else {
+    console.log(`${colors.yellow}⚠ Handler file not found: ${file}${colors.reset}`);
+  }
+}
 
 console.log(`${colors.green}✓ Copied API functions${colors.reset}`);
 
