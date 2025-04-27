@@ -1,60 +1,49 @@
-// Netlify Function to handle API requests
-// Using CommonJS style exports for better compatibility
-exports.handler = async function(event, context) {
-  // Extract the requested path from the event
+// Main API proxy function for Netlify
+export async function handler(event, context) {
   const path = event.path.replace('/.netlify/functions/api', '');
+  const method = event.httpMethod;
   
-  // Basic router for different API endpoints
-  if (path === '/videos' || path === '/videos/') {
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        videos: [
-          {
-            id: 1,
-            title: "Sample Video",
-            videoId: "sample123",
-            url: "https://example.com/video.mp4",
-            createdAt: new Date().toISOString(),
-            accessCount: 0
-          }
-        ]
-      }),
-      headers: {
-        "Content-Type": "application/json"
-      }
-    };
-  }
+  console.log(`API Request: ${method} ${path}`);
   
-  if (path === '/domains' || path === '/domains/') {
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        domains: [
-          {
-            id: 1,
-            domain: "example.com",
-            active: true,
-            createdAt: new Date().toISOString()
-          }
-        ]
-      }),
-      headers: {
-        "Content-Type": "application/json"
-      }
-    };
-  }
-  
-  // Default response for any other API endpoint
-  return {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: "This is a static Netlify function response. For full functionality, please use the actual backend server.",
-      path: path,
-      method: event.httpMethod
-    }),
-    headers: {
-      "Content-Type": "application/json"
+  try {
+    // Import the appropriate handler based on the path
+    let module;
+    
+    // Videos endpoints
+    if (path.startsWith('/videos') || path === '/videos') {
+      module = await import('./handlers/videos.js');
+    } 
+    // Domains endpoints
+    else if (path.startsWith('/domains') || path === '/domains') {
+      module = await import('./handlers/domains.js');
     }
-  };
+    // Auth endpoints
+    else if (path.startsWith('/auth') || path === '/auth') {
+      module = await import('./handlers/auth.js');
+    }
+    // Default fallback
+    else {
+      module = await import('./handlers/default.js');
+    }
+    
+    // Call the appropriate handler
+    if (module && module.handleRequest) {
+      return await module.handleRequest(event, context);
+    }
+    
+    // Fallback if no handler found
+    return {
+      statusCode: 404,
+      body: JSON.stringify({ error: 'Not found', path }),
+      headers: { 'Content-Type': 'application/json' }
+    };
+  } catch (error) {
+    console.error('Error handling request:', error);
+    
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Internal server error', message: error.message }),
+      headers: { 'Content-Type': 'application/json' }
+    };
+  }
 }
