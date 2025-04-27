@@ -1,12 +1,12 @@
-# Complete Guide to Deploying WovIeX on Cloudflare
+# Complete Guide to Deploying Sill on Cloudflare
 
-This guide explains how to deploy the WovIeX application to Cloudflare from scratch, including configuring Telegram storage and all necessary security settings.
+This guide explains how to deploy the Sill application to Cloudflare from scratch, including configuring Telegram storage and all necessary security settings.
 
 ## Prerequisites
 
 1. Create a [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier is sufficient)
 2. Have your Telegram bot token ready (or create a new bot using BotFather)
-3. Your WovIeX codebase
+3. Your Sill codebase
 
 ## Step 1: Set Up Your Cloudflare Project
 
@@ -45,7 +45,7 @@ Update the `wrangler.toml` file (already in your project):
 
 ```toml
 # Basic Worker configuration
-name = "woviex-api"
+name = "sill-api"
 main = "worker/index.js"
 compatibility_date = "2023-05-18"
 
@@ -78,7 +78,7 @@ When you run each command, you'll be prompted to enter the value for each secret
 
 ## Step 3: Telegram Storage Setup
 
-The WovIeX application uses Telegram as its storage mechanism instead of a traditional database. This is how to set it up for Cloudflare:
+The Sill application uses Telegram as its storage mechanism instead of a traditional database. This is how to set it up for Cloudflare:
 
 ### Create a Telegram Bot (if you don't have one)
 
@@ -111,7 +111,7 @@ wrangler dev
 wrangler publish
 ```
 
-This will deploy your API to a URL like `https://woviex-api.username.workers.dev`
+This will deploy your API to a URL like `https://sill-api.username.workers.dev`
 
 ## Step 5: Deploy Your Frontend to Cloudflare Pages
 
@@ -124,7 +124,7 @@ This will deploy your API to a URL like `https://woviex-api.username.workers.dev
    - Build output directory: `client/dist`
    - Root directory: `/` (root of your repository)
    - Environment variables:
-     - Add `API_URL` set to your Worker URL (e.g., `https://woviex-api.username.workers.dev/api`)
+     - Add `API_URL` set to your Worker URL (e.g., `https://sill-api.username.workers.dev/api`)
 
 ## Step 6: Configure Your Frontend
 
@@ -135,7 +135,7 @@ Create a file `client/src/api-config.js` to connect to your Worker:
 export const API_BASE_URL = 
   window.ENV && window.ENV.API_URL 
     ? window.ENV.API_URL 
-    : 'https://woviex-api.username.workers.dev/api';
+    : 'https://sill-api.username.workers.dev/api';
 
 export async function fetchApi(endpoint, options = {}) {
   const url = endpoint.startsWith('/')
@@ -168,8 +168,8 @@ Then import and use this in your components instead of direct fetch calls.
 
 ## Step 7: Test Your Deployment
 
-1. Visit your Cloudflare Pages URL (e.g., `https://woviex.pages.dev`)
-2. Test API endpoints (e.g., `https://woviex-api.username.workers.dev/api/status`)
+1. Visit your Cloudflare Pages URL (e.g., `https://sill.pages.dev`)
+2. Test API endpoints (e.g., `https://sill-api.username.workers.dev/api/status`)
 3. Make sure the frontend can communicate with the backend
 
 ## Handling API Routes

@@ -1,6 +1,6 @@
-# Complete VPS Deployment Guide for WovIeX
+# Complete VPS Deployment Guide for Sill
 
-This guide provides step-by-step instructions for deploying the WovIeX application on a VPS (Virtual Private Server) from scratch.
+This guide provides step-by-step instructions for deploying the Sill application on a VPS (Virtual Private Server) from scratch.
 
 ## Prerequisites
 
@@ -52,8 +52,8 @@ mkdir -p /var/www
 cd /var/www
 
 # Clone the repository (replace with your actual repository URL)
-git clone https://github.com/yourusername/woviex.git
-cd woviex
+git clone https://github.com/yourusername/sill.git
+cd sill
 ```
 
 ## Step 4: Install Dependencies
@@ -90,20 +90,20 @@ Save and exit (Ctrl+X, then Y, then Enter).
 This will allow your application to run in the background and start automatically if the server restarts.
 
 ```bash
-sudo nano /etc/systemd/system/woviex.service
+sudo nano /etc/systemd/system/sill.service
 ```
 
 Add the following content:
 
 ```
 [Unit]
-Description=WovIeX Application
+Description=Sill Application
 After=network.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/var/www/woviex
+WorkingDirectory=/var/www/sill
 ExecStart=/usr/bin/npm start
 Restart=on-failure
 Environment=NODE_ENV=production
@@ -117,14 +117,14 @@ Save and exit (Ctrl+X, then Y, then Enter).
 Enable and start the service:
 
 ```bash
-sudo systemctl enable woviex
-sudo systemctl start woviex
+sudo systemctl enable sill
+sudo systemctl start sill
 ```
 
 Check if the service is running:
 
 ```bash
-sudo systemctl status woviex
+sudo systemctl status sill
 ```
 
 ## Step 7: Set Up Nginx as a Reverse Proxy
@@ -138,7 +138,7 @@ sudo apt install -y nginx
 Create an Nginx configuration file:
 
 ```bash
-sudo nano /etc/nginx/sites-available/woviex
+sudo nano /etc/nginx/sites-available/sill
 ```
 
 Add the following configuration:
@@ -164,7 +164,7 @@ server {
 Enable the site:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/woviex /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/sill /etc/nginx/sites-enabled/
 sudo nginx -t  # Test the configuration
 sudo systemctl restart nginx
 ```
@@ -187,7 +187,7 @@ Follow the prompts to complete the setup.
 
 ## Step 9: Testing Your Deployment
 
-Visit your domain or server IP in a web browser. You should see the WovIeX application.
+Visit your domain or server IP in a web browser. You should see the Sill application.
 
 To check the API, visit:
 
@@ -200,7 +200,7 @@ https://your-domain.com/api/status
 ### Check Application Logs
 
 ```bash
-sudo journalctl -u woviex
+sudo journalctl -u sill
 ```
 
 ### Check Nginx Logs
@@ -213,7 +213,7 @@ sudo tail -f /var/log/nginx/error.log
 ### Restart Services
 
 ```bash
-sudo systemctl restart woviex
+sudo systemctl restart sill
 sudo systemctl restart nginx
 ```
 
@@ -222,7 +222,7 @@ sudo systemctl restart nginx
 For easier future deployments, create a deployment script:
 
 ```bash
-nano /var/www/woviex/deploy.sh
+nano /var/www/sill/deploy.sh
 ```
 
 Add the following content:
@@ -231,7 +231,7 @@ Add the following content:
 #!/bin/bash
 
 # Change to the application directory
-cd /var/www/woviex
+cd /var/www/sill
 
 # Pull the latest changes
 git pull
@@ -243,7 +243,7 @@ npm install
 npm run build
 
 # Restart the service
-sudo systemctl restart woviex
+sudo systemctl restart sill
 
 echo "Deployment completed successfully!"
 ```
@@ -261,7 +261,7 @@ Now you can run `./deploy.sh` to update your application.
 Create a backup script:
 
 ```bash
-nano /var/www/woviex/backup.sh
+nano /var/www/sill/backup.sh
 ```
 
 Add the following content:
@@ -276,9 +276,9 @@ mkdir -p /var/www/backups
 TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
 
 # Create a backup archive
-tar -czf /var/www/backups/woviex-$TIMESTAMP.tar.gz -C /var/www woviex
+tar -czf /var/www/backups/sill-$TIMESTAMP.tar.gz -C /var/www sill
 
-echo "Backup created at /var/www/backups/woviex-$TIMESTAMP.tar.gz"
+echo "Backup created at /var/www/backups/sill-$TIMESTAMP.tar.gz"
 ```
 
 Make the script executable:
@@ -296,14 +296,14 @@ sudo crontab -e
 Add the following line:
 
 ```
-0 2 * * * /var/www/woviex/backup.sh >/dev/null 2>&1
+0 2 * * * /var/www/sill/backup.sh >/dev/null 2>&1
 ```
 
 This will run the backup script every day at 2:00 AM.
 
 ## Important Notes for Telegram Storage
 
-Since WovIeX uses Telegram for data storage, keep the following in mind:
+Since Sill uses Telegram for data storage, keep the following in mind:
 
 1. Make sure your Telegram bot has admin privileges in the storage channel
 2. The bot should have the ability to send messages to the channel
@@ -354,6 +354,6 @@ For more advanced monitoring, consider setting up tools like Netdata or Promethe
 
 ## Conclusion
 
-Your WovIeX application should now be running on your VPS. If you encounter any issues, check the logs and make sure all services are running correctly.
+Your Sill application should now be running on your VPS. If you encounter any issues, check the logs and make sure all services are running correctly.
 
 For further assistance, please refer to the application documentation or reach out to the development team.

@@ -1,19 +1,19 @@
 /**
- * Cloudflare Worker for WovIeX API
+ * Cloudflare Worker for Sill API
  * This adapts the Express routes to Cloudflare Workers
  */
 
 // Import jsonwebtoken equivalent (for Cloudflare Workers environment)
 import { verify, sign } from './jwt-worker.js';
 
-// In-memory storage (for dev/demo only - use D1 or KV for production)
+// In-memory storage (for dev/demo only - use Telegram storage for production)
 let storage = {
   users: [{ id: 1, username: 'admin', role: 'admin' }],
   videos: [],
   domains: [
     { id: 1, domain: 'example.com', active: true },
     { id: 2, domain: 'test.com', active: true },
-    { id: 3, domain: 'woviex.com', active: true }
+    { id: 3, domain: 'sill.com', active: true }
   ],
   logs: []
 };
