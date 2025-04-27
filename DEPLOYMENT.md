@@ -1,300 +1,242 @@
-# Deployment Guide for WovIeX Application
+# Deploying Sill on Render.com - Complete Guide
 
-This guide provides instructions for deploying the WovIeX application on Koyeb, VPS servers, Cloudflare, or other hosting platforms.
+This guide provides comprehensive, step-by-step instructions for deploying the Sill video scraper application on Render.com.
 
 ## Table of Contents
 
-1. [Environment Variables](#environment-variables)
-2. [Koyeb Deployment](#koyeb-deployment)
-3. [VPS Deployment](#vps-deployment)
-4. [Cloudflare Deployment](#cloudflare-deployment)
-5. [Telegram Bot Configuration](#telegram-bot-configuration)
-6. [Channel Storage Configuration](#channel-storage-configuration)
-7. [Webhook Mode vs Polling Mode](#webhook-mode-vs-polling-mode)
-8. [Troubleshooting](#troubleshooting)
+1. [Why Render.com](#why-rendercom)
+2. [Prerequisites](#prerequisites)
+3. [Deployment Steps](#deployment-steps)
+   - [Database Setup](#1-database-setup)
+   - [Web Service Setup](#2-web-service-setup)
+   - [Environment Variables](#3-environment-variables)
+   - [Database Initialization](#4-database-initialization)
+4. [Post-Deployment Configuration](#post-deployment-configuration)
+5. [Accessing Your Application](#accessing-your-application)
+6. [Troubleshooting Common Issues](#troubleshooting-common-issues)
+7. [Render-Specific Features](#render-specific-features)
+8. [Maintenance and Updates](#maintenance-and-updates)
 
-## Environment Variables
+## Why Render.com
 
-The application requires the following environment variables:
+Render.com is ideal for deploying Sill because it:
+- Automatically handles SSL certificates
+- Provides managed PostgreSQL databases
+- Offers free tier for testing
+- Enables one-click deployment from GitHub
+- Requires minimal DevOps knowledge
 
-### Required Variables
-- `TELEGRAM_BOT_TOKEN`: Your Telegram bot token (from BotFather)
-- `TELEGRAM_CHANNEL_ID`: The ID of your Telegram channel for storage
-- `ADMIN_PASSWORD`: Password for the web admin interface (can also be set as `WEB_ADMIN_PASSWORD`)
+## Prerequisites
 
-### Optional Variables for Cloud/VPS Deployment
-- `USE_WEBHOOK`: Set to "true" to force webhook mode (recommended for servers)
-- `PUBLIC_URL` or `APP_URL`: The public URL of your application (e.g., https://yourdomain.com)
-- `WEBHOOK_URL`: Alternative to PUBLIC_URL, full URL where Telegram should send webhooks
-- `CLOUD_ENV` or `VPS`: Set to "true" to indicate a cloud/VPS environment
+Before starting, make sure you have:
 
-### Optional Admin Variables
-- `TELEGRAM_ADMIN_USERS`: Comma-separated list of Telegram user IDs who are admins
-- `BOT_ADMIN_PASSWORD`: Password for Telegram bot admin commands
-- `API_KEY`: For direct API access (optional)
+1. A [Render.com account](https://render.com/signup)
+2. Access to the [Sill GitHub repository](https://github.com/sandy2k25/sill)
+3. (Optional) A Telegram bot token if you plan to use Telegram features
 
-## Koyeb Deployment
+## Deployment Steps
 
-1. **Create a Koyeb account** at [koyeb.com](https://koyeb.com) if you don't have one
+### 1. Database Setup
 
-2. **Deploy your app**:
-   - Connect your GitHub repository or use Docker deployment
-   - For GitHub deployment, select the repository and branch
-   - Set the build command: `npm install`
-   - Set the start command: `npm start`
+First, create a PostgreSQL database for your Sill application:
 
-3. **Configure Environment Variables**:
-   - Add all the required environment variables listed above
-   - Add `USE_WEBHOOK=true`
-   - Add `PUBLIC_URL=https://your-koyeb-app-url.koyeb.app` (replace with your actual Koyeb URL)
-
-4. **Deploy and Verify**:
-   - Deploy the application
-   - Check the logs to verify the application has started correctly
-   - Verify that the Telegram bot webhook is properly configured
-
-## VPS Deployment
-
-1. **Prepare your VPS**:
-   - Setup a fresh Ubuntu/Debian server
-   - Install Node.js (v18+) and npm
-   - Install git
-
-2. **Clone the repository**:
-   ```bash
-   git clone https://github.com/yourusername/woviex.git
-   cd woviex
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-
-4. **Set up environment variables**:
-   Create a `.env` file in the root directory:
-   ```
-   TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-   TELEGRAM_CHANNEL_ID=your_channel_id
-   ADMIN_PASSWORD=your_admin_password
-   BOT_ADMIN_PASSWORD=your_bot_admin_password
-   USE_WEBHOOK=true
-   PUBLIC_URL=https://your-domain.com
-   ```
-
-5. **Set up a reverse proxy (Nginx)**:
-   ```
-   server {
-       listen 80;
-       server_name your-domain.com;
-       
-       location / {
-           proxy_pass http://localhost:5000;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection 'upgrade';
-           proxy_set_header Host $host;
-           proxy_cache_bypass $http_upgrade;
-       }
-   }
-   ```
-
-6. **Set up SSL with Certbot**:
-   ```bash
-   sudo apt install certbot python3-certbot-nginx
-   sudo certbot --nginx -d your-domain.com
-   ```
-
-7. **Start the application**:
-   ```bash
-   # Install PM2 for process management
-   npm install -g pm2
+1. Log in to your [Render Dashboard](https://dashboard.render.com/)
+2. Click on **New** in the top right corner
+3. Select **PostgreSQL** from the dropdown menu
+4. Fill in the database details:
+   - **Name**: `sill-db` (or your preferred name)
+   - **Database**: `silldb`
+   - **User**: Leave default
+   - **Region**: Choose the closest to your users
+   - **PostgreSQL Version**: 14 or higher
+   - **Instance Type**: Free (for testing) or higher for production
    
-   # Start the application
-   pm2 start npm --name "woviex" -- start
+   ![Database Setup](https://i.imgur.com/example1.png)
    
-   # Ensure it starts on boot
-   pm2 startup
-   pm2 save
-   ```
+5. Click **Create Database**
+6. After creation, you'll see the database information screen. **Important**: Note the **Internal Database URL** for the next step.
 
-## Cloudflare Deployment
+### 2. Web Service Setup
 
-### Option 1: Cloudflare Pages
+Now, deploy the Sill application as a web service:
 
-1. **Prepare your project**:
-   - Make sure your project is in a GitHub repository
-   - Add a `_redirects` file to the root of your project:
-   ```
-   /* /index.html 200
-   ```
-
-2. **Configure your project in Cloudflare Pages**:
-   - Log in to your Cloudflare dashboard
-   - Go to Pages > Create a project
-   - Connect your GitHub repository
-   - Configure the build settings:
-     - Framework preset: Custom
-     - Build command: `npm install && npm run build`
-     - Build output directory: `dist`
-   - Add the required environment variables
-   - Click "Save and Deploy"
-
-3. **Configure Cloudflare Workers for API Functions**:
-   Since Cloudflare Pages doesn't natively support Node.js APIs, you'll need to implement Cloudflare Workers:
-   - Create a `functions` directory in your project
-   - Create a catch-all API handler in `functions/api/[[path]].js`
-   ```js
-   export async function onRequest(context) {
-     // Forward the request to your backend API
-     const { request } = context;
-     const url = new URL(request.url);
-     
-     // Replace with your actual backend API URL (like Koyeb or VPS)
-     const apiUrl = "https://your-backend-api.com" + url.pathname + url.search;
-     
-     return fetch(apiUrl, {
-       method: request.method,
-       headers: request.headers,
-       body: request.body
-     });
-   }
-   ```
-
-### Option 2: Cloudflare Workers
-
-For a fully serverless deployment using Cloudflare Workers:
-
-1. **Install Wrangler CLI**:
-   ```bash
-   npm install -g wrangler
-   ```
-
-2. **Initialize Wrangler**:
-   ```bash
-   wrangler init
-   ```
-
-3. **Configure your wrangler.toml**:
-   ```toml
-   name = "woviex"
-   type = "javascript"
+1. Return to the Render Dashboard
+2. Click on **New** > **Web Service**
+3. Connect your GitHub repository or use **Deploy from GitHub** option
+   - Find and select the Sill repository
    
-   account_id = "your_account_id"
-   workers_dev = true
+   ![Connect Repository](https://i.imgur.com/example2.png)
    
-   [env.production]
-   routes = [
-     "your-domain.com/*"
-   ]
+4. Fill in the service details:
+   - **Name**: `sill` (or your preferred name)
+   - **Region**: Select the same region as your database
+   - **Branch**: `main` (or your preferred branch)
+   - **Root Directory**: Leave empty
+   - **Runtime**: Node
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `node dist/index.js`
    
-   [site]
-   bucket = "./dist"
-   entry-point = "workers-site"
-   ```
+   ![Service Configuration](https://i.imgur.com/example3.png)
+   
+5. Scroll down to **Advanced** settings and click to expand
 
-4. **Configure environment variables**:
+### 3. Environment Variables
+
+Configure the necessary environment variables:
+
+1. In the **Environment Variables** section, add:
+   - `NODE_ENV`: `production`
+   - `PORT`: `10000` (Render's default port)
+   - `DATABASE_URL`: [Paste the Internal Database URL from step 1]
+   - `TELEGRAM_BOT_TOKEN`: [Your Telegram bot token if available]
+   - `TELEGRAM_CHANNEL_ID`: [Your Telegram channel ID if available]
+   
+   ![Environment Variables](https://i.imgur.com/example4.png)
+   
+2. Under **Health Check Path**: Enter `/api/stats` (if your app has this route) or `/`
+3. Click **Create Web Service**
+
+Your application will now start deploying. This process typically takes 5-10 minutes for the first deployment.
+
+### 4. Database Initialization
+
+After the web service is successfully deployed, initialize the database:
+
+1. From your web service dashboard, go to the **Shell** tab
+2. Run the database migration command:
    ```bash
-   wrangler secret put TELEGRAM_BOT_TOKEN
-   wrangler secret put TELEGRAM_CHANNEL_ID
-   wrangler secret put ADMIN_PASSWORD
-   wrangler secret put BOT_ADMIN_PASSWORD
+   npx drizzle-kit push
    ```
+3. Wait for the command to complete successfully
 
-5. **Build and deploy**:
+## Post-Deployment Configuration
+
+### Setting Up Admin Access
+
+1. Access your application at the URL provided by Render (e.g., `https://sill.onrender.com/nimda`)
+2. Log in with the default credentials:
+   - Username: `admin`
+   - Password: `admin123`
+3. Immediately change the default password through the admin interface
+
+### Configuring Telegram Bot (Optional)
+
+If you're using the Telegram integration:
+
+1. Ensure you've added the `TELEGRAM_BOT_TOKEN` environment variable
+2. Access your admin dashboard
+3. Navigate to the Telegram configuration section
+4. Follow the on-screen instructions to connect your bot
+
+## Accessing Your Application
+
+Your Sill application is now accessible at:
+- Main URL: `https://your-service-name.onrender.com`
+- Admin area: `https://your-service-name.onrender.com/nimda`
+
+## Troubleshooting Common Issues
+
+### Application Not Starting
+
+If your application fails to start:
+
+1. Check the **Logs** tab in your Render web service dashboard
+2. Common issues include:
+   - Database connection errors: Verify your DATABASE_URL is correct
+   - Build errors: Check if the build command is completing successfully
+   - Memory issues: Consider upgrading to a higher tier if you're on the free plan
+
+### Database Connection Issues
+
+If your application cannot connect to the database:
+
+1. Verify that you're using the **Internal Database URL** (not the external one)
+2. Check if the database is running in the Render dashboard
+3. Try connecting to the database manually using the Shell:
    ```bash
-   npm run build
-   wrangler publish
+   psql $DATABASE_URL
    ```
 
-### Option 3: Cloudflare for SPA and separate Backend
+### Environment Variable Problems
 
-For the best performance, you can deploy the frontend on Cloudflare Pages and the backend on a VPS or Koyeb:
+If environment variables aren't being recognized:
 
-1. **Separate your project**:
-   - Deploy the frontend (React app) to Cloudflare Pages
-   - Deploy the backend (Express API) to Koyeb or a VPS
+1. Double-check all variable names and values in the Render dashboard
+2. Remember that changes to environment variables require a service restart
+3. Click **Manual Deploy** > **Clear build cache & deploy** to ensure changes take effect
 
-2. **Configure CORS**:
-   - Add CORS headers to your backend API to allow requests from your Cloudflare Pages domain
-   - Update your frontend API calls to point to your backend URL
+## Render-Specific Features
 
-3. **Use Cloudflare Proxy**:
-   - Proxy your backend API through Cloudflare for added security and performance
-   - Configure appropriate caching rules in Cloudflare dashboard
+### Custom Domains
 
-## Telegram Bot Configuration
+To use your own domain:
 
-1. **Create a bot with BotFather**:
-   - Open Telegram and search for @BotFather
-   - Send `/newbot` and follow the instructions
-   - Copy the API token for your `.env` file
+1. Go to your web service in the Render dashboard
+2. Click on the **Settings** tab
+3. Scroll down to **Custom Domain**
+4. Click **Add Custom Domain**
+5. Follow the on-screen instructions to configure DNS settings
 
-2. **Set up bot commands**:
-   - Send `/setcommands` to @BotFather
-   - Select your bot
-   - Paste the following:
-   ```
-   help - Show help information
-   stats - Show system statistics
-   domain - Manage domain whitelist
-   settings - Configure scraper settings
-   cache - Manage video cache
-   logs - View recent system logs
-   channel - Manage storage channel
-   admin - Authenticate as admin
-   ```
+### Auto-Scaling (Paid Plans)
 
-## Channel Storage Configuration
+For production deployments with higher traffic:
 
-1. **Create a Telegram channel**:
-   - Create a new channel in Telegram
-   - Add your bot as an administrator with posting privileges
-   - Make the channel private
+1. Upgrade to a paid plan
+2. Go to your web service settings
+3. Under **Scaling** configure:
+   - Auto-scaling limits
+   - Instance count
 
-2. **Get the channel ID**:
-   - Forward a message from the channel to @userinfobot
-   - The bot will reply with the channel ID (should start with -100...)
+### Background Workers
 
-3. **Set the channel ID in your environment variables**:
-   - `TELEGRAM_CHANNEL_ID=your_channel_id`
+If your application needs background processing:
 
-## Webhook Mode vs Polling Mode
+1. Consider creating a separate Background Worker service in Render
+2. Configure it with the same environment variables
+3. Use a different start command for your worker process
 
-- **Webhook Mode (Recommended for production)**:
-  - More efficient, no constant polling
-  - Requires a public HTTPS URL
-  - Set `USE_WEBHOOK=true` and provide `PUBLIC_URL`
+## Maintenance and Updates
 
-- **Polling Mode (Default for development)**:
-  - Works without a public URL
-  - Less efficient for production use
-  - Automatically used if webhook configuration is not available
+### Updating Your Application
 
-## Troubleshooting
+When you push changes to your GitHub repository:
 
-### Bot Not Responding
-1. Check the logs to see if the bot started successfully
-2. Verify your `TELEGRAM_BOT_TOKEN` is correct
-3. If using webhook mode, ensure your domain is properly configured with HTTPS
-4. Try restarting the application
+1. Render will automatically detect the changes
+2. A new build will be triggered
+3. Once successful, your application will be updated
 
-### Channel Storage Issues
-1. Verify the bot is an administrator in the channel
-2. Ensure the channel ID is correctly formatted (should start with -100)
-3. Check the application logs for errors related to channel access
+For manual updates:
 
-### Webhook Setup Problems
-1. Ensure your domain has a valid SSL certificate
-2. Verify the webhook URL is accessible from the internet
-3. Check Telegram's webhook info via:
-   ```bash
-   curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
-   ```
+1. Go to your web service dashboard
+2. Click **Manual Deploy** > **Deploy latest commit**
 
-### Domain Authentication is Disabled
-As requested, domain authentication has been disabled in this version. All domains are allowed to access and embed the player without restrictions. If you want to re-enable domain authentication in the future, you'll need to modify the `embedProtectionMiddleware` function in `server/utils.ts`.
+### Database Backups
 
----
+Render automatically takes daily backups of your PostgreSQL database.
 
-For additional support or questions, please open an issue in the GitHub repository.
+To create a manual backup:
+
+1. Go to your PostgreSQL service in the Render dashboard
+2. Click the **Backups** tab
+3. Click **Manual Backup**
+
+To restore from a backup:
+
+1. Go to the **Backups** tab
+2. Find the backup you want to restore
+3. Click the three dots menu > **Restore**
+
+## One-Click Deployment
+
+For future deployments, you can use the one-click deploy button in your GitHub repository's README:
+
+```markdown
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/sandy2k25/sill)
+```
+
+## Cost Optimization
+
+- Free tier services on Render sleep after 15 minutes of inactivity
+- For production use, consider the $7/month Starter plan which stays active 24/7
+- Database costs start at $7/month for the Starter tier
+- Total cost for a basic production deployment: ~$14/month
