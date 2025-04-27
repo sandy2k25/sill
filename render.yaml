@@ -13,24 +13,16 @@ services:
         value: production
       - key: PORT
         value: 10000 # Render's default port
-      - key: DATABASE_URL
-        fromDatabase:
-          name: sill-db
-          property: connectionString
-      # Optional Telegram configuration
+      # Required Telegram configuration
       - key: TELEGRAM_BOT_TOKEN
         sync: false # This must be set manually for security
       - key: TELEGRAM_CHANNEL_ID
         sync: false # This must be set manually
+      - key: TELEGRAM_BOT_ADMIN_PASSWORD
+        sync: false # This must be set manually
+      - key: ADMIN_PASSWORD
+        sync: false # This must be set manually
     autoDeploy: true # Set to false if you prefer manual deployments
-
-# PostgreSQL database
-databases:
-  - name: sill-db
-    plan: free # Adjust as needed: free, starter, standard, etc.
-    region: oregon # Same region as web service
-    databaseName: silldb
-    user: sill # Render will create a user
 
 # Specify the GitHub repository for deployment
 repo: https://github.com/sandy2k25/sill

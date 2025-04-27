@@ -7,10 +7,9 @@ This guide provides comprehensive, step-by-step instructions for deploying the S
 1. [Why Render.com](#why-rendercom)
 2. [Prerequisites](#prerequisites)
 3. [Deployment Steps](#deployment-steps)
-   - [Database Setup](#1-database-setup)
-   - [Web Service Setup](#2-web-service-setup)
-   - [Environment Variables](#3-environment-variables)
-   - [Database Initialization](#4-database-initialization)
+   - [Web Service Setup](#1-web-service-setup)
+   - [Critical Environment Variables](#2-critical-environment-variables)
+   - [Authentication Credentials](#3-authentication-credentials)
 4. [Post-Deployment Configuration](#post-deployment-configuration)
 5. [Accessing Your Application](#accessing-your-application)
 6. [Troubleshooting Common Issues](#troubleshooting-common-issues)
@@ -21,9 +20,9 @@ This guide provides comprehensive, step-by-step instructions for deploying the S
 
 Render.com is ideal for deploying Sill because it:
 - Automatically handles SSL certificates
-- Provides managed PostgreSQL databases
 - Offers free tier for testing
 - Enables one-click deployment from GitHub
+- Provides environment variable management for secure credentials
 - Requires minimal DevOps knowledge
 
 ## Prerequisites
@@ -32,82 +31,68 @@ Before starting, make sure you have:
 
 1. A [Render.com account](https://render.com/signup)
 2. Access to the [Sill GitHub repository](https://github.com/sandy2k25/sill)
-3. (Optional) A Telegram bot token if you plan to use Telegram features
+3. Your Telegram bot token (required for Telegram integration)
+4. Your Telegram channel ID (required for Telegram storage)
+5. Admin and bot passwords for your installation
 
 ## Deployment Steps
 
-### 1. Database Setup
+### 1. Web Service Setup
 
-First, create a PostgreSQL database for your Sill application:
+Deploy the Sill application as a web service:
 
 1. Log in to your [Render Dashboard](https://dashboard.render.com/)
-2. Click on **New** in the top right corner
-3. Select **PostgreSQL** from the dropdown menu
-4. Fill in the database details:
-   - **Name**: `sill-db` (or your preferred name)
-   - **Database**: `silldb`
-   - **User**: Leave default
-   - **Region**: Choose the closest to your users
-   - **PostgreSQL Version**: 14 or higher
-   - **Instance Type**: Free (for testing) or higher for production
-   
-   ![Database Setup](https://i.imgur.com/example1.png)
-   
-5. Click **Create Database**
-6. After creation, you'll see the database information screen. **Important**: Note the **Internal Database URL** for the next step.
-
-### 2. Web Service Setup
-
-Now, deploy the Sill application as a web service:
-
-1. Return to the Render Dashboard
 2. Click on **New** > **Web Service**
 3. Connect your GitHub repository or use **Deploy from GitHub** option
    - Find and select the Sill repository
    
-   ![Connect Repository](https://i.imgur.com/example2.png)
+   ![Connect Repository](https://i.imgur.com/example1.png)
    
 4. Fill in the service details:
    - **Name**: `sill` (or your preferred name)
-   - **Region**: Select the same region as your database
+   - **Region**: Select the region closest to your users
    - **Branch**: `main` (or your preferred branch)
    - **Root Directory**: Leave empty
    - **Runtime**: Node
    - **Build Command**: `npm install && npm run build`
    - **Start Command**: `node dist/index.js`
    
-   ![Service Configuration](https://i.imgur.com/example3.png)
+   ![Service Configuration](https://i.imgur.com/example2.png)
    
 5. Scroll down to **Advanced** settings and click to expand
 
-### 3. Environment Variables
+### 2. Critical Environment Variables
 
 Configure the necessary environment variables:
 
 1. In the **Environment Variables** section, add:
    - `NODE_ENV`: `production`
    - `PORT`: `10000` (Render's default port)
-   - `DATABASE_URL`: [Paste the Internal Database URL from step 1]
-   - `TELEGRAM_BOT_TOKEN`: [Your Telegram bot token if available]
-   - `TELEGRAM_CHANNEL_ID`: [Your Telegram channel ID if available]
+   - `TELEGRAM_BOT_TOKEN`: Your Telegram bot token (required for bot functionality)
+   - `TELEGRAM_CHANNEL_ID`: Your Telegram channel ID (required for persistent storage)
+   - `TELEGRAM_BOT_ADMIN_PASSWORD`: Password for Telegram bot admin access
+   - `ADMIN_PASSWORD`: Password for web admin interface (overrides default)
    
-   ![Environment Variables](https://i.imgur.com/example4.png)
+   ![Environment Variables](https://i.imgur.com/example3.png)
    
 2. Under **Health Check Path**: Enter `/api/stats` (if your app has this route) or `/`
 3. Click **Create Web Service**
 
 Your application will now start deploying. This process typically takes 5-10 minutes for the first deployment.
 
-### 4. Database Initialization
+### 3. Authentication Credentials
 
-After the web service is successfully deployed, initialize the database:
+Understanding the different authentication methods:
 
-1. From your web service dashboard, go to the **Shell** tab
-2. Run the database migration command:
-   ```bash
-   npx drizzle-kit push
-   ```
-3. Wait for the command to complete successfully
+1. **Web Admin Interface**:
+   - Default username: `admin`
+   - Default password: `admin123` (override with `ADMIN_PASSWORD` environment variable)
+   - Access URL: `https://your-service-name.onrender.com/nimda`
+
+2. **Telegram Bot Admin**:
+   - Set with `TELEGRAM_BOT_ADMIN_PASSWORD` environment variable
+   - Used when interacting with the Telegram bot
+   - Required for administrative commands to the bot
 
 ## Post-Deployment Configuration
 
@@ -142,20 +127,18 @@ If your application fails to start:
 
 1. Check the **Logs** tab in your Render web service dashboard
 2. Common issues include:
-   - Database connection errors: Verify your DATABASE_URL is correct
+   - Telegram token issues: Verify your TELEGRAM_BOT_TOKEN is correct
    - Build errors: Check if the build command is completing successfully
    - Memory issues: Consider upgrading to a higher tier if you're on the free plan
 
-### Database Connection Issues
+### Telegram Bot Issues
 
-If your application cannot connect to the database:
+If your Telegram bot isn't functioning properly:
 
-1. Verify that you're using the **Internal Database URL** (not the external one)
-2. Check if the database is running in the Render dashboard
-3. Try connecting to the database manually using the Shell:
-   ```bash
-   psql $DATABASE_URL
-   ```
+1. Verify that your TELEGRAM_BOT_TOKEN is correct and valid
+2. Check if your TELEGRAM_CHANNEL_ID is in the correct format
+3. Ensure the bot has been added to the channel with admin permissions
+4. Check application logs for any Telegram-related error messages
 
 ### Environment Variable Problems
 
@@ -210,21 +193,17 @@ For manual updates:
 1. Go to your web service dashboard
 2. Click **Manual Deploy** > **Deploy latest commit**
 
-### Database Backups
+### Telegram Channel as Backup
 
-Render automatically takes daily backups of your PostgreSQL database.
+The Sill application uses a Telegram channel for data storage and backup.
 
-To create a manual backup:
+To ensure your data is backed up:
 
-1. Go to your PostgreSQL service in the Render dashboard
-2. Click the **Backups** tab
-3. Click **Manual Backup**
+1. Verify that your TELEGRAM_CHANNEL_ID is correctly configured
+2. Make sure the bot has admin permissions in the channel
+3. Check the admin dashboard to confirm Telegram storage is working properly
 
-To restore from a backup:
-
-1. Go to the **Backups** tab
-2. Find the backup you want to restore
-3. Click the three dots menu > **Restore**
+The application will automatically save important information to this channel for persistence.
 
 ## One-Click Deployment
 
@@ -238,5 +217,5 @@ For future deployments, you can use the one-click deploy button in your GitHub r
 
 - Free tier services on Render sleep after 15 minutes of inactivity
 - For production use, consider the $7/month Starter plan which stays active 24/7
-- Database costs start at $7/month for the Starter tier
-- Total cost for a basic production deployment: ~$14/month
+- Total cost for a basic production deployment: ~$7/month for the starter plan
+- No database costs as the application uses Telegram for data storage
