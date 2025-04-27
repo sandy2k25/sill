@@ -23,8 +23,8 @@ sudo apt install -y git curl nodejs npm nginx
 mkdir -p /var/www
 cd /var/www
 
-# Clone the repository (change to your actual repository URL)
-git clone https://github.com/yourusername/sill.git
+# Clone the repository
+git clone https://github.com/sandy2k25/sill.git
 cd sill
 
 # Install dependencies

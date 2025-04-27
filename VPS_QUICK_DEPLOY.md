@@ -5,7 +5,7 @@
 Copy and paste this single command to your VPS terminal:
 
 ```bash
-curl -s https://raw.githubusercontent.com/yourusername/sill/main/deploy-sill.sh | bash
+curl -s https://raw.githubusercontent.com/sandy2k25/sill/main/deploy-sill.sh | bash
 ```
 
 You'll be asked for:
@@ -23,7 +23,7 @@ sudo apt update
 sudo apt install -y git curl nodejs npm
 
 # Get the code
-git clone https://github.com/yourusername/sill.git
+git clone https://github.com/sandy2k25/sill.git
 cd sill
 npm install
 ```
