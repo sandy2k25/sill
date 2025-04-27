@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
+// Using CommonJS style for better compatibility with Netlify
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 // Colors for console output
 const colors = {
@@ -21,13 +22,15 @@ if (!fs.existsSync('vite.netlify.config.js')) {
   console.log(`${colors.yellow}Creating Netlify-specific Vite config...${colors.reset}`);
   
   const configContent = `
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
+// Using CommonJS style for better compatibility with Netlify
+const path = require('path');
+const { defineConfig } = require('vite');
 
-// This is a simplified Vite configuration specifically for Netlify deployment
-export default defineConfig({
-  plugins: [react()],
+// This is a minimal Vite configuration specifically for Netlify deployment
+// We avoid using plugins to prevent dependency issues
+module.exports = defineConfig({
+  // No plugins to avoid dependency issues
+  plugins: [],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
@@ -39,6 +42,12 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+  },
+  // Add specific settings for JSX handling without plugins
+  esbuild: {
+    jsxInject: \`import React from 'react'\`,
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
   },
 });`;
   
@@ -95,7 +104,8 @@ if (fs.existsSync('netlify/functions')) {
   
   const netlifyFunction = `
 // Netlify Function to handle API requests
-export async function handler(event, context) {
+// Using CommonJS style exports for better compatibility
+exports.handler = async function(event, context) {
   return {
     statusCode: 200,
     body: JSON.stringify({

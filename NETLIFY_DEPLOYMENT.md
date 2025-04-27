@@ -16,7 +16,7 @@ This document explains how to deploy the application to Netlify.
 3. Connect to your Git provider and select the repository
 
 4. Configure the build settings:
-   - Build command: `npm ci && node netlify-build.js`
+   - Build command: `cp netlify-package.json package.json && npm ci && node netlify-build.js`
    - Publish directory: `dist/public`
 
 5. (Optional) Configure environment variables:

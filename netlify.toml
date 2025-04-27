@@ -1,5 +1,5 @@
 [build]
-  command = "npm ci && node netlify-build.js"
+  command = "cp netlify-package.json package.json && npm ci && node netlify-build.js"
   publish = "dist/public"
 
 [functions]

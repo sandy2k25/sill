@@ -1,5 +1,6 @@
 // Netlify Function to handle API requests
-export async function handler(event, context) {
+// Using CommonJS style exports for better compatibility
+exports.handler = async function(event, context) {
   // Extract the requested path from the event
   const path = event.path.replace('/.netlify/functions/api', '');
   
