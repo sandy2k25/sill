@@ -1,0 +1,17 @@
+{
+  "name": "woviex-cloudflare",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev worker/index.js",
+    "build:worker": "wrangler publish",
+    "build:frontend": "cd client && vite build",
+    "deploy": "npm run build:worker && npm run build:frontend"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20230404.0",
+    "@neondatabase/serverless": "^0.6.0",
+    "wrangler": "^3.0.0"
+  }
+}

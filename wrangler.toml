@@ -1,0 +1,27 @@
+# Cloudflare Workers configuration file
+name = "woviex-api"
+main = "worker/index.js"
+compatibility_date = "2023-05-18"
+
+# DO NOT put actual secrets here
+# Use wrangler secret put JWT_SECRET instead
+# Use wrangler secret put ADMIN_USERNAME instead
+# Use wrangler secret put ADMIN_PASSWORD instead
+
+# KV Namespace for storage 
+# Uncomment and set ID after creating with:
+# wrangler kv:namespace create STORAGE
+# [[kv_namespaces]]
+# binding = "STORAGE"
+# id = "your-kv-namespace-id"
+
+# D1 Database (SQLite) - Uncomment after creating with:
+# wrangler d1 create woviex-db
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "woviex-db"
+# database_id = "your-database-id"
+
+# Development settings
+[env.development]
+workers_dev = true
