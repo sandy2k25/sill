@@ -360,70 +360,157 @@ if (fs.existsSync('shared')) {
 // Build the frontend
 console.log(`${colors.cyan}Building frontend...${colors.reset}`);
 try {
+  // Normalize React imports to avoid conflicts
+  console.log(`${colors.yellow}Normalizing React imports to avoid conflicts...${colors.reset}`);
+  try {
+    execSync('node fix-react-imports.js', { stdio: 'inherit' });
+    console.log(`${colors.green}✓ React imports normalized${colors.reset}`);
+  } catch (error) {
+    console.error(`${colors.red}❌ Failed to normalize React imports: ${error.message}${colors.reset}`);
+    console.log(`${colors.yellow}Continuing with build anyway...${colors.reset}`);
+  }
+  
   // Create a new Netlify-aware client entry point
-console.log(`${colors.yellow}Creating Netlify patch file...${colors.reset}`);
+  console.log(`${colors.yellow}Creating Netlify patch file...${colors.reset}`);
+  
+  // First check if the netlify-patch.js file exists
+  if (!fs.existsSync('client/src/lib/netlify-patch.js')) {
+    console.log(`${colors.yellow}netlify-patch.js not found, creating it...${colors.reset}`);
+    
+    // Create the directory if it doesn't exist
+    if (!fs.existsSync('client/src/lib')) {
+      fs.mkdirSync('client/src/lib', { recursive: true });
+    }
+    
+    // Create the file
+    const patchCode = `/**
+ * Netlify environment patch
+ * 
+ * This file modifies the client code to work properly in a Netlify Functions environment
+ */
 
-// First check if the netlify-patch.js file exists
-if (!fs.existsSync('client/src/lib/netlify-patch.js')) {
-  console.log(`${colors.yellow}netlify-patch.js not found, creating it...${colors.reset}`);
-  // This was already created in a previous step
+// Modify API base path for Netlify
+export const API_BASE_URL = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('.netlify.app') || 
+   localStorage.getItem('NETLIFY_MODE') === 'true')
+  ? '/.netlify/functions/api'
+  : '/api';
+
+// Helper to check if we're running in Netlify
+export const isNetlify = () => {
+  if (typeof window === 'undefined') return false;
+  
+  return window.location.hostname.includes('.netlify.app') ||
+         localStorage.getItem('NETLIFY_MODE') === 'true' ||
+         process.env.VITE_NETLIFY_DEPLOY === 'true';
+};
+
+// Inject into global scope for easy access
+if (typeof window !== 'undefined') {
+  window.__NETLIFY_ENV__ = {
+    isNetlify: isNetlify(),
+    apiBaseUrl: API_BASE_URL
+  };
+  
+  // Set a flag in localStorage for persistence across page loads
+  if (isNetlify()) {
+    localStorage.setItem('NETLIFY_MODE', 'true');
+  }
 }
 
-// Import the patch file in main.tsx before the build
-const mainFilePath = 'client/src/main.tsx';
-let mainFileContent = '';
-
-if (fs.existsSync(mainFilePath)) {
-  // Read the original content
-  mainFileContent = fs.readFileSync(mainFilePath, 'utf8');
+export default { API_BASE_URL, isNetlify };`;
+    
+    fs.writeFileSync('client/src/lib/netlify-patch.js', patchCode);
+    console.log(`${colors.green}✓ Created netlify-patch.js${colors.reset}`);
+  }
   
-  // Backup original file
-  fs.copyFileSync(mainFilePath, `${mainFilePath}.backup`);
+  // Import the patch file in main.tsx before the build
+  const mainFilePath = 'client/src/main.tsx';
+  let mainFileContent = '';
   
-  // Check if the import is already there
-  if (!mainFileContent.includes('netlify-patch')) {
-    // We'll use a simple import that won't conflict with existing React imports
-    const patchedContent = `// Import Netlify patch (added by build script)
+  if (fs.existsSync(mainFilePath)) {
+    // Read the original content
+    mainFileContent = fs.readFileSync(mainFilePath, 'utf8');
+    
+    // Backup original file
+    fs.copyFileSync(mainFilePath, `${mainFilePath}.backup`);
+    
+    // Check if the import is already there
+    if (!mainFileContent.includes('netlify-patch')) {
+      // We'll use a simple import that won't conflict with existing React imports
+      const patchedContent = `// Import Netlify patch (added by build script)
 import "./lib/netlify-patch.js";
 
 ${mainFileContent}`;
-    
-    // Write the patched file
-    fs.writeFileSync(mainFilePath, patchedContent);
-    console.log(`${colors.green}✓ Patched main.tsx with Netlify detection${colors.reset}`);
+      
+      // Write the patched file
+      fs.writeFileSync(mainFilePath, patchedContent);
+      console.log(`${colors.green}✓ Patched main.tsx with Netlify detection${colors.reset}`);
+    } else {
+      console.log(`${colors.yellow}main.tsx already has Netlify patch import${colors.reset}`);
+    }
   } else {
-    console.log(`${colors.yellow}main.tsx already has Netlify patch import${colors.reset}`);
+    console.log(`${colors.red}main.tsx not found!${colors.reset}`);
   }
-} else {
-  console.log(`${colors.red}main.tsx not found!${colors.reset}`);
-}
 
   execSync('npx vite build --config vite.netlify.js', { stdio: 'inherit' });
   console.log(`${colors.green}✓ Frontend build completed successfully${colors.reset}`);
   
-  // Restore original file if backed up
+  // Restore all modified files
+  console.log(`${colors.yellow}Restoring modified files...${colors.reset}`);
+  
+  // Restore main.tsx if backed up
   if (fs.existsSync('client/src/main.tsx.backup')) {
     fs.copyFileSync('client/src/main.tsx.backup', 'client/src/main.tsx');
     fs.unlinkSync('client/src/main.tsx.backup');
+    console.log(`${colors.green}✓ Restored main.tsx${colors.reset}`);
+  }
+  
+  // Run the React import normalizer in restore mode
+  try {
+    execSync('node fix-react-imports.js restore', { stdio: 'inherit' });
+    console.log(`${colors.green}✓ Restored normalized React imports${colors.reset}`);
+  } catch (error) {
+    console.error(`${colors.red}❌ Failed to restore React imports: ${error.message}${colors.reset}`);
   }
 } catch (error) {
   console.error(`${colors.red}❌ Frontend build failed${colors.reset}`, error.message);
   
-  // Restore original file if backed up
+  // Restore all modified files
+  console.log(`${colors.yellow}Restoring modified files after build failure...${colors.reset}`);
+  
+  // Restore main.tsx if backed up
   if (fs.existsSync('client/src/main.tsx.backup')) {
     fs.copyFileSync('client/src/main.tsx.backup', 'client/src/main.tsx');
     fs.unlinkSync('client/src/main.tsx.backup');
+    console.log(`${colors.green}✓ Restored main.tsx${colors.reset}`);
+  }
+  
+  // Run the React import normalizer in restore mode
+  try {
+    execSync('node fix-react-imports.js restore', { stdio: 'inherit' });
+    console.log(`${colors.green}✓ Restored normalized React imports${colors.reset}`);
+  } catch (error) {
+    console.error(`${colors.red}❌ Failed to restore React imports: ${error.message}${colors.reset}`);
   }
   
   console.log(`${colors.yellow}Falling back to static HTML...${colors.reset}`);
   
-  // Create a static HTML fallback
-  const htmlContent = `<!DOCTYPE html>
+  // Create a better static HTML fallback using our pre-designed page
+  let htmlContent = '';
+  
+  // Check if we have a custom static HTML template
+  if (fs.existsSync('netlify-static.html')) {
+    htmlContent = fs.readFileSync('netlify-static.html', 'utf8');
+    console.log(`${colors.green}✓ Using custom netlify-static.html template${colors.reset}`);
+  } else {
+    // Fallback to basic HTML
+    htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WovIeX</title>
+  <title>WovIeX | Video Extraction Platform</title>
   <style>
     body { font-family: system-ui, sans-serif; line-height: 1.5; max-width: 800px; margin: 0 auto; padding: 2rem; }
     .container { background: #f9f9f9; border-radius: 8px; padding: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -440,6 +527,7 @@ ${mainFileContent}`;
   </div>
 </body>
 </html>`;
+  }
   
   fs.writeFileSync('dist/public/index.html', htmlContent);
   console.log(`${colors.green}✓ Created fallback index.html${colors.reset}`);
