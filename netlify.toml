@@ -1,16 +1,46 @@
+# WovIeX Netlify Configuration
+# Full application deployment settings
+
 [build]
   command = "node netlify-full.js"
   publish = "dist/public"
+  environment = { NODE_VERSION = "18" }
 
 [functions]
   directory = "dist/functions"
+  node_bundler = "esbuild"
 
+# API redirects
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Static assets
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
   status = 200
 
+# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
+
+# Headers to enable SPA navigation and CORS
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    Cache-Control = "public, max-age=3600"
+    Content-Security-Policy = "default-src 'self' https: data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self' data:; connect-src 'self' https:;"
+
+# Database access timeout
+[functions.api]
+  included_files = ["shared/**"]
+  external_node_modules = ["@neondatabase/serverless"]
+  timeout = 30

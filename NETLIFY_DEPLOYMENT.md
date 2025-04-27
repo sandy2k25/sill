@@ -1,107 +1,95 @@
-# Netlify Deployment Guide
+# Deploying the Complete WovIeX Application to Netlify
 
-This document explains how to deploy this application to Netlify. Our setup uses a special configuration to handle the transition from a full-stack application to a Netlify-hosted frontend with serverless functions.
+This guide explains how to deploy the full WovIeX application to Netlify, including both frontend and backend functionality.
 
-## Pre-requisites
+## Prerequisites
 
-- A Netlify account
-- Git repository containing the project
-- Basic understanding of Netlify deployment process
+1. A Netlify account
+2. A PostgreSQL database (preferably Neon for serverless compatibility)
+3. Git repository with your WovIeX code
 
-## Deployment Steps
+## Step 1: Prepare Your Environment Variables
 
-1. **Prepare Your Repository**
-   - Make sure all the Netlify configuration files are in your repository:
-     - `netlify.toml` - Netlify configuration
-     - `netlify-build.js` - Custom build script
-     - `netlify-package.json` - Specialized package.json for Netlify
-     - `vite.netlify.config.js` - Simplified Vite configuration for Netlify
-     - `netlify/functions/api.js` - API function for Netlify
+Before deploying, you'll need to set up the following environment variables in Netlify's settings:
 
-2. **Push Code to Git Repository**
-   - Commit all changes to your repository
-   - Push to GitHub, GitLab, or Bitbucket
+```
+DATABASE_URL=postgres://username:password@your-db-host.com:5432/dbname
+JWT_SECRET=your-jwt-secret-key
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=secure-password
+TELEGRAM_BOT_TOKEN=your-telegram-bot-token (optional)
+TELEGRAM_CHANNEL_ID=your-telegram-channel-id (optional)
+TELEGRAM_ADMIN_IDS=1234567890 (optional)
+```
 
-3. **Connect to Netlify**
-   - Log in to your Netlify account
-   - Click "Add new site" > "Import an existing project"
-   - Connect to your Git provider and select the repository
+## Step 2: Deploy to Netlify
 
-4. **Configure Build Settings**
-   - Build command: `cp netlify-package.json package.json && npm ci && node netlify-build.js`
+You can deploy using any of these methods:
+
+### Option A: Deploy from Git Repository
+
+1. Log in to your Netlify account
+2. Click "New site from Git"
+3. Select your Git provider and repository
+4. Configure the build settings:
+   - Build command: `node netlify-full.js`
    - Publish directory: `dist/public`
-   - This specialized build command will:
-     1. Replace the package.json with our Netlify-specific version
-     2. Install only the dependencies needed for the build
-     3. Run our custom build script
+5. Click "Deploy site"
 
-5. **Configure Environment Variables**
-   - Click "Advanced build settings" to add environment variables
-   - Add `VITE_NETLIFY=true` to enable Netlify-specific configurations
-   - Other optional variables:
-     - `NODE_VERSION`: Set to `16` or higher if you encounter Node.js compatibility issues
+### Option B: Deploy from Local Directory
 
-6. **Deploy Site**
-   - Click "Deploy site"
-   - Netlify will build and deploy your application
+1. Run the build script locally: `node netlify-full.js`
+2. Install Netlify CLI: `npm install -g netlify-cli`
+3. Log in to Netlify: `netlify login`
+4. Deploy using CLI: `netlify deploy --prod --dir=dist`
 
-7. **Verify Deployment**
-   - Once deployed, check that your site works correctly
-   - Test navigation and any client-side functionality
-   - Verify that API endpoints through Netlify Functions are working
+## Step 3: Database Setup
 
-## How It Works
+This application uses Drizzle ORM. To set up your database:
 
-Our Netlify deployment uses a specialized architecture:
+1. Make sure your DATABASE_URL environment variable is set correctly
+2. The database schema will be automatically applied on initial run
 
-### Key Files
+## Step 4: Testing Your Deployment
 
-- `netlify.toml`: Main Netlify configuration file that defines build settings, redirects, and function locations
-- `netlify-build.js`: Custom CommonJS build script that handles building both frontend and serverless functions
-- `netlify/functions/api.js`: Netlify Function that provides a simplified API layer
-- `client/src/lib/netlify-config.ts`: Detects when running in Netlify to adjust API endpoints
-- `client/src/lib/netlify-api.ts`: API utilities specific to the Netlify environment
-- `vite.netlify.config.js`: Simplified Vite configuration without external plugins
-- `netlify-package.json`: Minimal package.json with only the dependencies needed for building
+Once deployed, you can test your API with these endpoints:
 
-### Architecture Differences
+- `/.netlify/functions/api/videos` - List videos
+- `/.netlify/functions/api/domains` - List domains
+- `/.netlify/functions/api/status` - Check API status
 
-In the Netlify deployment, we make several adjustments from the full-stack version:
-
-1. **Frontend Remains Intact**: The React frontend works mostly the same
-2. **Backend API → Netlify Functions**: API endpoints are reimplemented as serverless functions
-3. **Data Access**: Simplified data access with static responses or optional database connections
-
-## Limitations
-
-Since this is a static deployment on Netlify with serverless functions, there are some limitations:
-
-1. No persistent database (data is reset on each deployment)
-2. Limited server-side functionality compared to the full Express backend
-3. API responses are simplified mock data
+The frontend will automatically use these API endpoints when running on Netlify.
 
 ## Troubleshooting
 
-If you encounter issues with the deployment:
+### Common Issues
 
-1. Check the Netlify deployment logs for errors
-2. Verify that all dependencies are installed correctly
-3. Make sure the build script is running properly
-4. Check that all environment variables are set correctly
+1. **CORS errors**: Make sure your Netlify Functions are properly configured to allow requests from your domain.
 
-## Local Testing of Netlify Build
+2. **Database connection issues**: Verify that your DATABASE_URL is correct and your database is accessible from Netlify Functions.
 
-To test the Netlify build process locally before deploying:
+3. **Function timeouts**: If your functions are timing out, try increasing the timeout in netlify.toml.
 
-```bash
-# Install Netlify CLI
-npm install -g netlify-cli
+### Logs and Debugging
 
-# Run the build
-node netlify-build.js
+You can view logs for your Netlify Functions in the Netlify dashboard:
 
-# Start Netlify dev server
-netlify dev
-```
+1. Go to your site in the Netlify dashboard
+2. Click "Functions"
+3. Select a function to view its logs
 
-This will simulate the Netlify environment locally.
+## Additional Configuration
+
+### Custom Domain
+
+1. Go to your site settings in Netlify
+2. Click "Domain settings"
+3. Follow the instructions to add your custom domain
+
+### Environment Variables
+
+You can add or modify environment variables in your site settings:
+
+1. Go to your site in the Netlify dashboard
+2. Click "Site settings" > "Build & deploy" > "Environment"
+3. Add your variables here

@@ -4,176 +4,74 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WovIeX | Video Extraction Platform</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
   <style>
-    .card {
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    body {
+      background-color: #0f172a;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    .gradient-text {
+      background: linear-gradient(90deg, #4f46e5, #8b5cf6, #d946ef);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .card {
+      background-color: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(71, 85, 105, 0.3);
+      backdrop-filter: blur(10px);
+    }
+    .btn {
+      background: linear-gradient(90deg, #4f46e5, #8b5cf6);
+      transition: all 0.3s ease;
+    }
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px -10px rgba(79, 70, 229, 0.6);
+    }
+    .endpoints {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+    }
+    .endpoint-url {
+      color: #a5b4fc;
+      font-family: monospace;
     }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-  <header class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg">
-    <div class="container mx-auto px-4 py-6 flex justify-between items-center">
-      <h1 class="text-2xl md:text-3xl font-bold">WovIeX</h1>
-      <nav>
-        <ul class="flex space-x-4">
-          <li><a href="#features" class="hover:text-purple-200">Features</a></li>
-          <li><a href="#api" class="hover:text-purple-200">API</a></li>
-          <li><a href="#about" class="hover:text-purple-200">About</a></li>
-        </ul>
-      </nav>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="card max-w-2xl w-full rounded-xl shadow-2xl p-8 mx-auto">
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold mb-2 gradient-text">WovIeX</h1>
+      <p class="text-xl text-slate-300">Video Extraction Platform</p>
     </div>
-  </header>
-
-  <main class="container mx-auto px-4 py-8">
-    <section class="mb-16 text-center">
-      <h2 class="text-4xl font-bold text-gray-800 mb-4">Video Extraction Platform</h2>
-      <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-        A powerful platform for extracting, managing, and playing videos with advanced features.
-      </p>
-      <div class="inline-flex space-x-4">
-        <a href="/.netlify/functions/api/videos" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
-          Try API
-        </a>
-        <a href="#api" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
-          View Documentation
-        </a>
-      </div>
-    </section>
-
-    <section id="features" class="mb-16">
-      <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Features</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <div class="bg-white rounded-lg shadow-md p-6 card">
-          <div class="text-purple-600 text-4xl mb-4">📹</div>
-          <h3 class="text-xl font-semibold mb-2">Video Extraction</h3>
-          <p class="text-gray-600">Extract video URLs from various sources with a powerful scraping engine.</p>
-        </div>
-        <div class="bg-white rounded-lg shadow-md p-6 card">
-          <div class="text-purple-600 text-4xl mb-4">🚀</div>
-          <h3 class="text-xl font-semibold mb-2">High Performance</h3>
-          <p class="text-gray-600">Fast and reliable performance with intelligent caching and optimizations.</p>
-        </div>
-        <div class="bg-white rounded-lg shadow-md p-6 card">
-          <div class="text-purple-600 text-4xl mb-4">🔑</div>
-          <h3 class="text-xl font-semibold mb-2">Admin Dashboard</h3>
-          <p class="text-gray-600">Comprehensive admin dashboard for monitoring and management.</p>
-        </div>
-        <div class="bg-white rounded-lg shadow-md p-6 card">
-          <div class="text-purple-600 text-4xl mb-4">📱</div>
-          <h3 class="text-xl font-semibold mb-2">Telegram Integration</h3>
-          <p class="text-gray-600">Control and manage videos through Telegram bot integration.</p>
-        </div>
-        <div class="bg-white rounded-lg shadow-md p-6 card">
-          <div class="text-purple-600 text-4xl mb-4">🛡️</div>
-          <h3 class="text-xl font-semibold mb-2">Domain Protection</h3>
-          <p class="text-gray-600">Protect your videos with domain whitelisting and embed protection.</p>
-        </div>
-        <div class="bg-white rounded-lg shadow-md p-6 card">
-          <div class="text-purple-600 text-4xl mb-4">📊</div>
-          <h3 class="text-xl font-semibold mb-2">Analytics</h3>
-          <p class="text-gray-600">Track usage and performance with detailed analytics.</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="api" class="mb-16 bg-white rounded-lg shadow-md p-8">
-      <h2 class="text-3xl font-bold text-gray-800 mb-6">API Reference</h2>
-      <p class="text-gray-600 mb-8">Access our full-featured API to integrate video extraction into your applications.</p>
-      
-      <div class="space-y-6">
-        <div class="border-l-4 border-purple-600 pl-4">
-          <h3 class="text-xl font-semibold mb-2">GET /.netlify/functions/api/videos</h3>
-          <p class="text-gray-600">Get a list of recent videos.</p>
-          <div class="mt-2">
-            <a href="/.netlify/functions/api/videos" class="text-purple-600 hover:text-purple-800 font-semibold">Try it &rarr;</a>
-          </div>
-        </div>
-
-        <div class="border-l-4 border-purple-600 pl-4">
-          <h3 class="text-xl font-semibold mb-2">GET /.netlify/functions/api/videos/:videoId</h3>
-          <p class="text-gray-600">Get details for a specific video by ID.</p>
-          <div class="mt-2">
-            <a href="/.netlify/functions/api/videos/sample123" class="text-purple-600 hover:text-purple-800 font-semibold">Try it &rarr;</a>
-          </div>
-        </div>
-
-        <div class="border-l-4 border-purple-600 pl-4">
-          <h3 class="text-xl font-semibold mb-2">GET /.netlify/functions/api/domains</h3>
-          <p class="text-gray-600">Get a list of registered domains.</p>
-          <div class="mt-2">
-            <a href="/.netlify/functions/api/domains" class="text-purple-600 hover:text-purple-800 font-semibold">Try it &rarr;</a>
-          </div>
-        </div>
-
-        <div class="border-l-4 border-purple-600 pl-4">
-          <h3 class="text-xl font-semibold mb-2">GET /.netlify/functions/api/logs</h3>
-          <p class="text-gray-600">Get system logs (requires authentication).</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="about" class="mb-16 bg-white rounded-lg shadow-md p-8">
-      <h2 class="text-3xl font-bold text-gray-800 mb-6">About WovIeX</h2>
-      <p class="text-gray-600 mb-4">
-        WovIeX is a sophisticated web scraping application for extracting video URLs with advanced admin and user interfaces.
-        It provides robust video management through web and Telegram platforms, implementing embed protection and enhanced video
-        playback with improved server-side compatibility.
-      </p>
-      <p class="text-gray-600">
-        Built with TypeScript, Tailwind CSS, and modern React architecture, WovIeX delivers a seamless experience
-        for video extraction and management.
-      </p>
-    </section>
-  </main>
-
-  <footer class="bg-gray-800 text-white py-8">
-    <div class="container mx-auto px-4">
-      <div class="flex flex-col md:flex-row justify-between items-center">
-        <div class="mb-4 md:mb-0">
-          <h2 class="text-2xl font-bold">WovIeX</h2>
-          <p class="text-gray-400">Video Extraction Platform</p>
-        </div>
-        <div class="flex space-x-4">
-          <a href="#features" class="hover:text-purple-400">Features</a>
-          <a href="#api" class="hover:text-purple-400">API</a>
-          <a href="#about" class="hover:text-purple-400">About</a>
-        </div>
-      </div>
-      <div class="mt-8 pt-8 border-t border-gray-700 text-center text-gray-400">
-        <p>&copy; 2025 WovIeX. All rights reserved.</p>
-      </div>
+    
+    <div class="mb-8">
+      <h2 class="text-2xl font-semibold mb-4 text-white">API Ready!</h2>
+      <p class="mb-4">The WovIeX API is running successfully on Netlify Functions. The frontend is being prepared - check back soon for the full interface.</p>
+      <p class="mb-4">In the meantime, you can interact with the API directly using the endpoints below.</p>
     </div>
+    
+    <div class="endpoints p-4 rounded-lg mb-8 overflow-x-auto">
+      <h3 class="text-xl font-medium mb-2 text-white">Available Endpoints:</h3>
+      <ul class="space-y-2 text-sm">
+        <li><span class="endpoint-url">/.netlify/functions/api/videos</span> - List videos</li>
+        <li><span class="endpoint-url">/.netlify/functions/api/domains</span> - List domains</li>
+        <li><span class="endpoint-url">/.netlify/functions/api/status</span> - Check API status</li>
+      </ul>
+    </div>
+    
+    <div class="flex justify-center">
+      <a href="/.netlify/functions/api/status" class="btn px-6 py-3 rounded-lg font-medium text-white shadow-lg">
+        Check API Status
+      </a>
+    </div>
+  </div>
+  
+  <footer class="mt-8 text-slate-400 text-sm text-center">
+    <p>WovIeX - Powered by Netlify Functions</p>
   </footer>
-
-  <script>
-    // Simple JavaScript to handle smooth scrolling for anchor links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        document.querySelector(this.getAttribute('href')).scrollIntoView({
-          behavior: 'smooth'
-        });
-      });
-    });
-
-    // API test function
-    function testApi(endpoint) {
-      fetch(endpoint)
-        .then(response => response.json())
-        .then(data => {
-          console.log('API Response:', data);
-          alert('API call successful! Check console for details.');
-        })
-        .catch(error => {
-          console.error('API Error:', error);
-          alert('API call failed. Check console for details.');
-        });
-    }
-  </script>
 </body>
 </html>
