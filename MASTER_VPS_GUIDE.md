@@ -46,6 +46,12 @@ cd sill
 
 # Install dependencies
 npm install
+
+# Fix permissions to prevent 403 errors
+sudo chown -R www-data:www-data /var/www/sill
+sudo find /var/www/sill -type d -exec chmod 755 {} \;
+sudo find /var/www/sill -type f -exec chmod 644 {} \;
+sudo chmod 755 /var/www/sill/node_modules/.bin/*
 ```
 
 ### Step 3: Set Up Telegram Integration
@@ -230,6 +236,25 @@ sudo journalctl -u sill --no-pager -n 100
 cat /var/www/sill/.env
 ```
 
+### Fixing 403 Forbidden Errors
+
+If you get a "403 Forbidden" error or "You don't have permission to access" message:
+
+```bash
+# Fix file permissions
+sudo chown -R www-data:www-data /var/www/sill
+sudo find /var/www/sill -type d -exec chmod 755 {} \;
+sudo find /var/www/sill -type f -exec chmod 644 {} \;
+sudo chmod 755 /var/www/sill/node_modules/.bin/*
+
+# Restart services
+sudo systemctl restart nginx
+# If using PM2:
+pm2 restart sill
+# If using systemd:
+sudo systemctl restart sill
+```
+
 ### Nginx Issues
 
 ```bash
@@ -240,7 +265,7 @@ sudo nginx -t
 sudo systemctl status nginx
 
 # Check Nginx logs
-sudo tail -n 100 /var/nginx/error.log
+sudo tail -n 100 /var/log/nginx/error.log
 ```
 
 ### Telegram Integration Issues

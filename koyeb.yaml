@@ -1,0 +1,24 @@
+name: sill
+service:
+  name: app
+  type: web
+  runtime: dockerfile
+  ports:
+    - name: http
+      port: 8080
+      protocol: http
+      public: true
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: PORT
+      value: 8080
+    # Add these secrets in the Koyeb dashboard
+    # - name: JWT_SECRET
+    # - name: ADMIN_USERNAME
+    # - name: ADMIN_PASSWORD
+    # - name: TELEGRAM_BOT_TOKEN
+    # - name: TELEGRAM_CHAT_ID
+  docker:
+    memory: 512
+    cpus: 0.5

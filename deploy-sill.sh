@@ -96,6 +96,13 @@ fi
 echo -e "${BLUE}Installing Node.js dependencies...${NC}"
 npm install
 
+# Fix permissions
+echo -e "${BLUE}Setting correct file permissions...${NC}"
+chown -R www-data:www-data /var/www/sill
+find /var/www/sill -type d -exec chmod 755 {} \;
+find /var/www/sill -type f -exec chmod 644 {} \;
+chmod 755 /var/www/sill/node_modules/.bin/*
+
 # Create environment file
 echo -e "${BLUE}Creating environment file...${NC}"
 cat > .env << EOL

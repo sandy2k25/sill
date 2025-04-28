@@ -1,0 +1,84 @@
+Instance created. Preparing to start...
+Starting download for registry01.prod.koyeb.com/k-95e38f74-14b7-441f-84f8-f3725351d7ae/7a451b1c-6d12-48fa-90da-1ab6d0e62f73:8928465a-8efb-4692-8f3c-d787839f3826
+Download progress: 100% |[32m++++++++[0m| (27.7 MiB/s)
+Download complete for registry01.prod.koyeb.com/k-95e38f74-14b7-441f-84f8-f3725351d7ae/7a451b1c-6d12-48fa-90da-1ab6d0e62f73:8928465a-8efb-4692-8f3c-d787839f3826
+Instance is starting... Waiting for health checks to pass.
+
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js
+
+file:///workspace/dist/index.js:5
+  throw Error('Dynamic require of "' + x + '" is not supported');
+        ^
+
+Error: Dynamic require of "puppeteer" is not supported
+    at file:///workspace/dist/index.js:5:9
+    at file:///workspace/dist/index.js:2236:55
+    at ModuleJob.run (node:internal/modules/esm/module_job:271:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:547:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:116:5)
+
+Node.js v22.13.1
+Application exited with code 1. This usually indicates an application failure. Check that the command used to launch your application is correct.
+Initializing Telegram storage
+
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js
+
+Initializing Telegram storage
+Application exited with code 1. This usually indicates an application failure. Check that the command used to launch your application is correct.
+file:///workspace/dist/index.js:5
+  throw Error('Dynamic require of "' + x + '" is not supported');
+        ^
+
+Error: Dynamic require of "puppeteer" is not supported
+    at file:///workspace/dist/index.js:5:9
+    at file:///workspace/dist/index.js:2236:55
+    at ModuleJob.run (node:internal/modules/esm/module_job:271:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:547:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:116:5)
+
+Node.js v22.13.1
+Instance stopped.
+Instance created. Preparing to start...
+Starting download for registry01.prod.koyeb.com/k-95e38f74-14b7-441f-84f8-f3725351d7ae/7a451b1c-6d12-48fa-90da-1ab6d0e62f73:8928465a-8efb-4692-8f3c-d787839f3826
+Download progress: 100% |[32m++++++++[0m| (27.7 MiB/s)
+Download complete for registry01.prod.koyeb.com/k-95e38f74-14b7-441f-84f8-f3725351d7ae/7a451b1c-6d12-48fa-90da-1ab6d0e62f73:8928465a-8efb-4692-8f3c-d787839f3826
+Instance is starting... Waiting for health checks to pass.
+
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js
+
+file:///workspace/dist/index.js:5
+  throw Error('Dynamic require of "' + x + '" is not supported');
+        ^
+
+Error: Dynamic require of "puppeteer" is not supported
+    at file:///workspace/dist/index.js:5:9
+    at file:///workspace/dist/index.js:2236:55
+    at ModuleJob.run (node:internal/modules/esm/module_job:271:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:547:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:116:5)
+
+Node.js v22.13.1
+Application exited with code 1. This usually indicates an application failure. Check that the command used to launch your application is correct.
+Initializing Telegram storage
+
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.js
+
+file:///workspace/dist/index.js:5
+  throw Error('Dynamic require of "' + x + '" is not supported');
+        ^
+
+Error: Dynamic require of "puppeteer" is not supported
+    at file:///workspace/dist/index.js:5:9
+    at file:///workspace/dist/index.js:2236:55
+    at ModuleJob.run (node:internal/modules/esm/module_job:271:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:547:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:116:5)
+
+Node.js v22.13.1
+Initializing Telegram storage
+Application exited with code 1. This usually indicates an application failure. Check that the command used to launch your application is correct.
+Instance stopped.
